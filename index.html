@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EBG PS Analyzer — Huawei Argentina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── API KEY SCREEN ── */
+#apiscreen {
+  position: fixed; inset: 0;
+  background: #0a0c0f;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  font-family: 'DM Mono', monospace;
+}
+#apiscreen.hidden { display: none; }
+.api-card {
+  background: #111318;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 420px;
+  max-width: 95vw;
+}
+.api-logo {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 28px;
+}
+.api-logo-mark {
+  width: 32px; height: 32px; background: #cf2026; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; color: white;
+}
+.api-logo-text { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 16px; color: #e8eaf0; }
+.api-logo-sub { font-size: 11px; color: #555c70; }
+.api-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: #e8eaf0; margin-bottom: 8px; }
+.api-sub { font-size: 12px; color: #8a90a0; line-height: 1.6; margin-bottom: 24px; }
+.api-label { font-size: 10px; color: #555c70; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.api-input {
+  width: 100%; background: #181c23; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: #e8eaf0; font-family: 'DM Mono', monospace;
+  font-size: 12px; padding: 10px 12px; outline: none; margin-bottom: 16px;
+  transition: border .15s; letter-spacing: 0.04em;
+}
+.api-input:focus { border-color: rgba(255,255,255,0.25); background: #1e2330; }
+.api-input::placeholder { color: #555c70; }
+.api-btn {
+  width: 100%; padding: 11px; background: #cf2026; color: white; border: none;
+  border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: background .15s; margin-bottom: 14px;
+}
+.api-btn:hover { background: #e8343a; }
+.api-note {
+  font-size: 11px; color: #555c70; line-height: 1.6; text-align: center;
+}
+.api-note a { color: #60a5fa; text-decoration: none; }
+.api-note a:hover { text-decoration: underline; }
+.api-err { font-size: 11px; color: #e8343a; margin-bottom: 10px; display: none; }
+.api-err.show { display: block; }
+/* Key indicator in topbar */
+#key-indicator {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px; cursor: pointer;
+  background: rgba(22,163,74,0.1); color: #4ade80;
+  border: 1px solid rgba(22,163,74,0.3); font-family: 'DM Mono', monospace;
+  transition: all .15s;
+}
+#key-indicator:hover { background: rgba(207,32,38,0.1); color: #e8343a; border-color: rgba(207,32,38,0.3); }
+</style>
+</head>
+<body>
+
+<!-- API KEY SCREEN -->
+<div id="apiscreen">
+  <div class="api-card">
+    <div class="api-logo">
+      <div class="api-logo-mark">H</div>
+      <div>
+        <div class="api-logo-text">EBG PS Analyzer</div>
+        <div class="api-logo-sub">Professional Services · Huawei Argentina</div>
+      </div>
+    </div>
+    <div class="api-title">Ingresá tu API Key</div>
+    <div class="api-sub">
+      La key se guarda solo en tu browser (localStorage) y nunca se envía a ningún servidor externo. Se usa únicamente para llamar a la API de Anthropic.
+    </div>
+    <div class="api-label">Anthropic API Key</div>
+    <input class="api-input" id="api-key-input" type="password" placeholder="sk-ant-api03-..." onkeydown="if(event.key==='Enter')saveKey()">
+    <div class="api-err" id="api-err">⚠ La key debe empezar con "sk-ant-"</div>
+    <button class="api-btn" onclick="saveKey()">Ingresar a la herramienta →</button>
+    <div class="api-note">
+      ¿No tenés una key? Creala en <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a><br>
+      Para cambiar la key después, hacé click en el indicador verde de la barra superior.
+    </div>
+  </div>
+</div>
+
+<!-- APP (hidden until key is set) -->
+<div id="app" style="display:none;">
+<style>
+:root {
+  --bg:#0a0c0f;--bg2:#111318;--bg3:#181c23;--bg4:#1e2330;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e8eaf0;--text2:#8a90a0;--text3:#555c70;
+  --accent:#cf2026;--accent2:#e8343a;--accentbg:rgba(207,32,38,0.1);--accentborder:rgba(207,32,38,0.3);
+  --blue:#2563eb;--bluebg:rgba(37,99,235,0.1);--blueborder:rgba(37,99,235,0.3);
+  --green:#16a34a;--greenbg:rgba(22,163,74,0.1);
+  --amber:#d97706;--amberbg:rgba(217,119,6,0.1);--amberborder:rgba(217,119,6,0.3);
+  --r:8px;--rl:12px;
+  --fd:'Syne',sans-serif;--fm:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--fm);font-size:13px;line-height:1.6;min-height:100vh;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:50px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-mark{width:26px;height:26px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:800;font-size:12px;color:white;}
+.logo-text{font-family:var(--fd);font-weight:600;font-size:13px;color:var(--text);}
+.logo-sub{font-size:10px;color:var(--text3);}
+.nav-tabs{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px;gap:2px;}
+.nav-tab{font-family:var(--fm);font-size:11px;padding:4px 12px;border-radius:4px;cursor:pointer;color:var(--text2);border:none;background:transparent;transition:all .15s;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{background:var(--bg4);color:var(--text);border:1px solid var(--border2);}
+.badge{font-size:10px;padding:2px 7px;border-radius:999px;font-family:var(--fm);letter-spacing:.06em;font-weight:500;}
+.badge-red{background:var(--accentbg);color:var(--accent2);border:1px solid var(--accentborder);}
+.badge-blue{background:var(--bluebg);color:#60a5fa;border:1px solid var(--blueborder);}
+.badge-amber{background:var(--amberbg);color:#fbbf24;border:1px solid var(--amberborder);}
+.badge-gray{background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+.main{display:flex;height:calc(100vh - 50px);}
+.sidebar{width:240px;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg2);overflow-y:auto;display:flex;flex-direction:column;}
+.content{flex:1;overflow-y:auto;padding:20px 24px;}
+.sidebar-section{padding:12px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.sf{margin-bottom:8px;}
+.sf label{display:block;font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px;}
+.sf input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fm);font-size:12px;padding:5px 8px;outline:none;transition:border .15s;}
+.sf input:focus{border-color:var(--border2);background:var(--bg4);}
+.sf input::placeholder{color:var(--text3);}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.chip{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text3);cursor:pointer;transition:all .12s;font-family:var(--fm);user-select:none;display:inline-block;margin:2px 2px 0 0;}
+.chip:hover{border-color:var(--border2);color:var(--text2);}
+.chip.active{background:var(--accentbg);border-color:var(--accentborder);color:var(--accent2);}
+.esc-item{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--r);border:1px solid transparent;transition:all .12s;}
+.esc-item.matched{background:var(--accentbg);border-color:var(--accentborder);}
+.esc-item.is-new{background:var(--amberbg);border-color:var(--amberborder);}
+.esc-id{font-size:10px;font-weight:500;color:var(--text3);min-width:40px;letter-spacing:.04em;}
+.esc-item.matched .esc-id{color:var(--accent2);}
+.esc-item.is-new .esc-id{color:#fbbf24;}
+.esc-name{font-size:11px;color:var(--text2);}
+.esc-item.matched .esc-name{color:var(--text);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.step-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.sn{width:26px;height:26px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:700;font-size:12px;color:var(--text2);flex-shrink:0;}
+.sn.active{background:var(--accent);border-color:var(--accent);color:white;}
+.sn.done{background:var(--greenbg);border-color:rgba(22,163,74,.3);color:#4ade80;}
+.step-title{font-family:var(--fd);font-weight:600;font-size:15px;color:var(--text);}
+.step-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.pc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:12px;}
+.pch{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.dot-b{background:var(--blue);}
+.dot-g{background:var(--green);}
+.dot-a{background:var(--amber);}
+.drop-zone{border:1px dashed var(--border2);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px;background:var(--bg3);}
+.drop-zone:hover{border-color:var(--accent2);background:var(--accentbg);}
+.drop-zone.drag-over{border-color:var(--accent2);background:var(--accentbg);}
+.drop-icon{width:32px;height:32px;border-radius:6px;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sep{display:flex;align-items:center;gap:8px;margin:8px 0;}
+.sep-line{flex:1;height:1px;background:var(--border);}
+.sep-txt{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;}
+textarea.req{width:100%;min-height:160px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fm);font-size:12px;line-height:1.7;padding:10px 12px;resize:vertical;outline:none;transition:border .15s;}
+textarea.req:focus{border-color:var(--border2);background:var(--bg4);}
+textarea.req::placeholder{color:var(--text3);}
+.btn-row{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.btn-p{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--r);font-family:var(--fm);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;}
+.btn-p:hover{background:var(--accent2);}
+.btn-p:disabled{opacity:.4;cursor:not-allowed;}
+.btn-s{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:var(--r);font-family:var(--fm);font-size:12px;cursor:pointer;transition:all .15s;}
+.btn-s:hover{background:var(--bg3);color:var(--text);}
+.status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);margin-top:8px;min-height:18px;}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pa 1.2s ease-in-out infinite;}
+@keyframes pa{0%,100%{opacity:.3;transform:scale(.8);}50%{opacity:1;transform:scale(1);}}
+#step2{display:none;}
+#step2.visible{display:block;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.metric-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;}
+.metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.metric-value{font-family:var(--fd);font-size:20px;font-weight:700;color:var(--text);line-height:1;}
+.metric-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.atext{font-size:12px;line-height:1.8;color:var(--text2);white-space:pre-wrap;}
+.gap-item{display:flex;gap:8px;padding:6px 10px;border-radius:var(--r);background:var(--amberbg);border:1px solid var(--amberborder);margin-bottom:5px;font-size:11px;color:var(--text2);}
+.gap-icon{color:#fbbf24;flex-shrink:0;}
+.ass-item{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);}
+.ass-item:last-child{border-bottom:none;}
+.ass-tag{font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bluebg);color:#60a5fa;border:1px solid var(--blueborder);flex-shrink:0;font-weight:500;}
+.sow-item{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.sow-item:last-child{border-bottom:none;}
+.sow-bull{width:16px;height:16px;border-radius:50%;background:var(--accentbg);border:1px solid var(--accentborder);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.sow-dot{width:5px;height:5px;border-radius:50%;background:var(--accent2);}
+.sow-title{font-size:12px;color:var(--text);font-weight:500;margin-bottom:1px;}
+.sow-desc{font-size:11px;color:var(--text2);line-height:1.5;}
+.oos-item{display:flex;gap:6px;padding:4px 0;font-size:12px;color:var(--text2);}
+.oos-x{color:var(--accent2);font-weight:500;flex-shrink:0;}
+.hist-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;margin-bottom:8px;cursor:pointer;transition:all .15s;}
+.hist-item:hover{border-color:var(--border2);background:var(--bg3);}
+.hist-client{font-family:var(--fd);font-size:13px;font-weight:600;color:var(--text);}
+.hist-preview{font-size:11px;color:var(--text2);margin:5px 0 8px;line-height:1.5;}
+.hist-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:28px;margin-bottom:10px;opacity:.4;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+@keyframes af{0%{background:var(--accentbg);border-color:var(--accentborder);}100%{background:var(--bg3);border-color:var(--border);}}
+.autofilled{animation:af 1.5s ease-out forwards;}
+</style>
+
+
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">H</div>
+    <div>
+      <div class="logo-text">EBG PS Analyzer</div>
+      <div class="logo-sub">Professional Services · Argentina</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('analyze')">Analizar</button>
+    <button class="nav-tab" onclick="switchTab('history')">Historial</button>
+    <button class="nav-tab" onclick="switchTab('scenarios')">Escenarios</button>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <span class="badge badge-red">EBG v2.1</span>
+    <span class="badge badge-blue" id="hbadge">0 análisis</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Proyecto</div>
+      <div class="sf"><label>Cliente</label><input id="s-client" placeholder="Ej: EDENOR S.A."></div>
+      <div class="sf"><label>Proyecto</label><input id="s-project" placeholder="Ej: Red eLTE 450MHz"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Dimensiones</div>
+      <div class="fr2">
+        <div class="sf"><label>Sitios</label><input type="number" id="s-sites" placeholder="0" min="0"></div>
+        <div class="sf"><label>APs</label><input type="number" id="s-aps" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
+        <div class="sf"><label>Switches</label><input type="number" id="s-sw" placeholder="0" min="0"></div>
+        <div class="sf"><label>Routers</label><input type="number" id="s-rt" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
+        <div class="sf"><label>BBUs</label><input type="number" id="s-bbu" placeholder="0" min="0"></div>
+        <div class="sf"><label>Links MW</label><input type="number" id="s-mw" placeholder="0" min="0"></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Tecnologías detectadas</div>
+      <div id="tech-chips">
+        <span class="chip" data-v="WLAN/Wi-Fi" onclick="toggleChip(this)">Wi-Fi</span>
+        <span class="chip" data-v="Campus LAN" onclick="toggleChip(this)">Campus LAN</span>
+        <span class="chip" data-v="SD-WAN/MPLS" onclick="toggleChip(this)">SD-WAN</span>
+        <span class="chip" data-v="Microwave/Backhaul" onclick="toggleChip(this)">Microwave</span>
+        <span class="chip" data-v="Storage SAN/NAS" onclick="toggleChip(this)">Storage</span>
+        <span class="chip" data-v="Backup/OceanProtect" onclick="toggleChip(this)">Backup</span>
+        <span class="chip" data-v="Video Vigilancia" onclick="toggleChip(this)">CCTV</span>
+        <span class="chip" data-v="Data Center" onclick="toggleChip(this)">Data Center</span>
+        <span class="chip" data-v="NCE/iMaster" onclick="toggleChip(this)">NCE</span>
+        <span class="chip" data-v="RAN/eLTE/Radio" onclick="toggleChip(this)">RAN / eLTE</span>
+        <span class="chip" data-v="Core Network/SPC" onclick="toggleChip(this)">Core</span>
+        <span class="chip" data-v="Firewall/Seguridad" onclick="toggleChip(this)">Firewall</span>
+        <span class="chip" data-v="SCADA/IoT" onclick="toggleChip(this)">SCADA/IoT</span>
+        <span class="chip" data-v="AMI/DCU" onclick="toggleChip(this)">AMI/DCU</span>
+        <span class="chip" data-v="Trunking/PTT" onclick="toggleChip(this)">Trunking</span>
+        <span class="chip" data-v="Energia/Solar" onclick="toggleChip(this)">Energía</span>
+      </div>
+    </div>
+    <div class="sidebar-section" style="flex:1;">
+      <div class="sidebar-label">Escenarios resultantes</div>
+      <div id="esc-list"><div style="font-size:11px;color:var(--text3);padding:4px 0;">Pendiente de análisis...</div></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- TAB ANALIZAR -->
+    <div class="tab-panel active" id="tab-analyze">
+      <div id="step1">
+        <div class="step-header">
+          <div class="sn active" id="sn1">1</div>
+          <div>
+            <div class="step-title">Requerimiento del cliente</div>
+            <div class="step-sub">Subí un archivo (PDF o Word) o pegá el texto directamente</div>
+          </div>
+        </div>
+        <div class="pc">
+          <div class="pch"><div class="dot"></div>Documento o texto del requerimiento</div>
+
+          <!-- DROP ZONE -->
+          <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()"
+            ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+            <div class="drop-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;" id="dz-title">Arrastrá un archivo o hacé click para seleccionar</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:1px;">PDF · Word (.docx) — hasta 20 MB</div>
+            </div>
+            <div id="fbadge" style="display:none;"><span class="badge badge-blue" id="fname"></span></div>
+          </div>
+          <input type="file" id="fi" accept=".pdf,.docx" style="display:none;" onchange="onFile(this.files[0])">
+
+          <div class="sep"><div class="sep-line"></div><span class="sep-txt">o pegá el texto</span><div class="sep-line"></div></div>
+
+          <textarea class="req" id="req" placeholder="Pegá aquí el requerimiento completo del cliente — mail, RFP, notas de reunión, descripción técnica..."></textarea>
+
+          <div class="btn-row">
+            <button class="btn-p" id="abtn" onclick="runAnalysis()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Analizar con IA
+            </button>
+            <button class="btn-s" onclick="loadEx()">Ejemplo EDENOR</button>
+            <button class="btn-s" onclick="clearAll()">Limpiar</button>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div id="step2">
+        <div class="step-header" style="margin-top:6px;">
+          <div class="sn done" id="sn2">✓</div>
+          <div style="flex:1;">
+            <div class="step-title">Análisis completado</div>
+            <div class="step-sub" id="res-sub">—</div>
+          </div>
+          <button class="btn-s" onclick="resetStep1()" style="font-size:11px;padding:5px 10px;">Nuevo análisis</button>
+        </div>
+
+        <div class="ag" id="metrics"></div>
+
+        <div class="two-col">
+          <div>
+            <div class="pc"><div class="pch"><div class="dot dot-b"></div>¿Qué quiere el cliente y para qué?</div><div class="atext" id="r-what"></div></div>
+            <div class="pc"><div class="pch"><div class="dot dot-b"></div>Estado actual (As-Is)</div><div class="atext" id="r-asis"></div></div>
+            <div class="pc"><div class="pch"><div class="dot dot-g"></div>Solución propuesta (To-Be)</div><div class="atext" id="r-tobe"></div></div>
+            <div class="pc"><div class="pch"><div class="dot dot-a"></div>Gaps de información</div><div id="r-gaps"></div></div>
+            <div class="pc"><div class="pch"><div class="dot dot-a"></div>Assumptions (para protegerte)</div><div id="r-ass"></div></div>
+          </div>
+          <div>
+            <div class="pc">
+              <div class="pch"><div class="dot"></div>Escenarios identificados</div>
+              <div id="r-tags" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+              <div class="atext" id="r-rat" style="margin-top:6px;"></div>
+            </div>
+            <div class="pc"><div class="pch"><div class="dot dot-g"></div>Alcance de comisionamiento (In Scope)</div><div id="r-sow"></div></div>
+            <div class="pc"><div class="pch"><div class="dot"></div>Fuera de alcance (Out of Scope)</div><div id="r-oos"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB HISTORIAL -->
+    <div class="tab-panel" id="tab-history">
+      <div id="hist-container">
+        <div class="empty"><div class="empty-icon">◷</div><div style="font-size:13px;">No hay análisis guardados todavía.</div></div>
+      </div>
+    </div>
+
+    <!-- TAB ESCENARIOS -->
+    <div class="tab-panel" id="tab-scenarios">
+      <div style="margin-bottom:16px;">
+        <div style="font-family:var(--fd);font-weight:600;font-size:16px;color:var(--text);margin-bottom:4px;">Catálogo de escenarios EBG PS</div>
+        <div style="font-size:12px;color:var(--text3);">16 escenarios estándar — referencia rápida</div>
+      </div>
+      <div id="catalog"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+const SC = [
+  {id:"ESC-01",name:"Campus Networking — Pequeño",cat:"Networking",dmin:7,dmax:12,desc:"≤5 switches, ≤50 APs, 1 sitio"},
+  {id:"ESC-02",name:"Campus Networking — Mediano",cat:"Networking",dmin:20,dmax:35,desc:"5–20 switches, 50–200 APs, 1–5 sitios"},
+  {id:"ESC-03",name:"Campus Networking — Grande",cat:"Networking",dmin:45,dmax:80,desc:"20+ switches, 200+ APs, 5+ sitios"},
+  {id:"ESC-04",name:"Wi-Fi Enterprise — Pequeño",cat:"Wi-Fi",dmin:6,dmax:10,desc:"≤50 APs, 1 controlador"},
+  {id:"ESC-05",name:"Wi-Fi Enterprise — Mediano",cat:"Wi-Fi",dmin:22,dmax:40,desc:"50–500 APs, controladores redundantes"},
+  {id:"ESC-06",name:"Wi-Fi Enterprise — Grande",cat:"Wi-Fi",dmin:55,dmax:100,desc:"500+ APs, NCE HA, multi-sede"},
+  {id:"ESC-07",name:"SD-WAN / MPLS Deployment",cat:"WAN",dmin:22,dmax:45,desc:"Routers AR/NetEngine, NCE-IP"},
+  {id:"ESC-08",name:"Storage SAN/NAS — Básico",cat:"Storage",dmin:7,dmax:12,desc:"1 array sin migración"},
+  {id:"ESC-09",name:"Storage SAN/NAS — Avanzado",cat:"Storage",dmin:20,dmax:35,desc:"HA + replicación + DR"},
+  {id:"ESC-10",name:"Migración de Storage",cat:"Storage",dmin:18,dmax:35,desc:"SAN/NAS/Object migration"},
+  {id:"ESC-11",name:"Backup / OceanProtect — Básico",cat:"Backup",dmin:6,dmax:10,desc:"1 appliance, sin Air-Gap"},
+  {id:"ESC-12",name:"Backup + Air-Gap",cat:"Backup",dmin:15,dmax:25,desc:"Vault, inmutabilidad, anti-ransomware"},
+  {id:"ESC-13",name:"Microwave / Wireless Backhaul",cat:"Microwave",dmin:12,dmax:20,desc:"P2P o 450MHz, por enlace"},
+  {id:"ESC-14",name:"Video Vigilancia",cat:"Video",dmin:12,dmax:22,desc:"IP Cameras + NVR/VMS"},
+  {id:"ESC-15",name:"Infraestructura Data Center",cat:"DC",dmin:28,dmax:55,desc:"Compute + Storage + SW + Virtualización"},
+  {id:"ESC-16",name:"Upgrade NCE / iMaster",cat:"Software",dmin:4,dmax:8,desc:"Upgrade minor o major"},
+];
+
+let hist=[], chips=new Set(), loadedFile=null;
+
+function switchTab(t) {
+  document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',['analyze','history','scenarios'][i]===t));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='history') renderHist();
+  if(t==='scenarios') renderCat();
+}
+
+function toggleChip(el) {
+  el.classList.toggle('active');
+  const v=el.dataset.v;
+  chips.has(v)?chips.delete(v):chips.add(v);
+}
+
+function setChips(vals) {
+  document.querySelectorAll('.chip').forEach(c=>{
+    const m=vals.some(v=>c.dataset.v.toLowerCase().includes(v.toLowerCase().split('/')[0])||v.toLowerCase().includes(c.dataset.v.toLowerCase().split('/')[0]));
+    c.classList.toggle('active',m);
+    m?chips.add(c.dataset.v):chips.delete(c.dataset.v);
+  });
+}
+
+function autofill(d) {
+  const map={'s-client':d.client,'s-project':d.project,'s-sites':d.sites,'s-aps':d.aps,'s-sw':d.switches,'s-rt':d.routers,'s-bbu':d.bbus,'s-mw':d.mw_links};
+  Object.entries(map).forEach(([id,v])=>{
+    if(v!=null&&v!==''){
+      const el=document.getElementById(id);
+      el.value=v;
+      el.classList.add('autofilled');
+      setTimeout(()=>el.classList.remove('autofilled'),1600);
+    }
+  });
+  if(d.technologies?.length) setChips(d.technologies);
+}
+
+function updateEscList(scenarios,newName) {
+  const el=document.getElementById('esc-list');
+  let html=SC.map(s=>{
+    const m=(scenarios||[]).includes(s.id);
+    return`<div class="esc-item${m?' matched':''}"><span class="esc-id">${s.id}</span><span class="esc-name">${s.name}</span></div>`;
+  }).join('');
+  if(newName) html+=`<div class="esc-item is-new"><span class="esc-id">NUEVO</span><span class="esc-name">${newName}</span></div>`;
+  el.innerHTML=html;
+}
+
+function setSt(msg,loading=false) {
+  document.getElementById('status').innerHTML=loading?`<div class="pulse"></div><span>${msg}</span>`:(msg?`<span>${msg}</span>`:'');
+}
+
+// ── DROP ZONE ──
+function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag-over');}
+function dzLeave(){document.getElementById('dz').classList.remove('drag-over');}
+function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f)onFile(f);}
+
+function onFile(file) {
+  if(!file) return;
+  const isPdf=file.type==='application/pdf'||file.name.endsWith('.pdf');
+  const isDocx=file.name.endsWith('.docx')||file.type.includes('wordprocessingml');
+  if(!isPdf&&!isDocx){setSt('⚠ Solo se aceptan PDF o Word (.docx)');return;}
+  if(file.size>20*1024*1024){setSt('⚠ El archivo supera los 20MB');return;}
+  document.getElementById('fname').textContent=file.name;
+  document.getElementById('fbadge').style.display='block';
+  document.getElementById('dz-title').textContent=file.name;
+  setSt(`Procesando ${file.name}...`,true);
+  if(isPdf) {
+    const r=new FileReader();
+    r.onload=ev=>{
+      loadedFile={type:'pdf',name:file.name,b64:ev.target.result.split(',')[1]};
+      setSt(`PDF listo — hacé click en "Analizar con IA"`);
+    };
+    r.readAsDataURL(file);
+  } else {
+    if(typeof mammoth==='undefined'){setSt('⚠ Librería DOCX cargando, esperá un segundo e intentá de nuevo.');return;}
+    const r=new FileReader();
+    r.onload=async ev=>{
+      try {
+        const res=await mammoth.extractRawText({arrayBuffer:ev.target.result});
+        if(!res.value.trim()) throw new Error('El documento parece vacío.');
+        loadedFile={type:'docx',name:file.name,text:res.value.trim()};
+        document.getElementById('req').value=res.value.trim();
+        setSt(`Word extraído: ${res.value.length} caracteres`);
+      } catch(e){setSt('⚠ No se pudo leer el Word: '+e.message);loadedFile=null;}
+    };
+    r.readAsArrayBuffer(file);
+  }
+}
+
+function clearFile() {
+  loadedFile=null;
+  document.getElementById('fbadge').style.display='none';
+  document.getElementById('dz-title').textContent='Arrastrá un archivo o hacé click para seleccionar';
+  document.getElementById('dz').classList.remove('drag-over');
+  document.getElementById('fi').value='';
+}
+
+function clearAll(){document.getElementById('req').value='';clearFile();setSt('');}
+
+function resetStep1() {
+  document.getElementById('step2').classList.remove('visible');
+  document.getElementById('step1').style.display='block';
+  document.getElementById('sn1').className='sn active';
+  document.getElementById('sn1').textContent='1';
+  updateEscList([]);
+}
+
+function loadEx() {
+  document.getElementById('req').value=`EDENOR busca implementar una Red Privada eLTE (Wireless) operando en la banda de 450 MHz para tres servicios críticos:
+- SCADA: Control y monitoreo remoto de la red eléctrica (Reclosers/RTUs)
+- AMI & DCU: Lectura inteligente de medidores (Advanced Metering Infrastructure)
+- Trunking Multimedia: Comunicaciones de voz y video para cuadrillas en campo (terminales EP821)
+
+Estado actual: 53 sitios existentes con 67.55% de cobertura. Necesitan llegar al 95%.
+
+Solución propuesta Huawei:
+- Core Network: Smart Packet Core (SPC) en configuración 1+1
+- Gestión: Sistema MAE-e para gestión unificada
+- Acceso: BBU5900 + RRU5908 (450MHz, 2x40W)
+- 21 sitios nuevos (74 sitios totales)
+- CPEs industriales para Reclosers y medidores
+- Terminales EP821 para personal de campo
+
+El comisionamiento sería remoto. La instalación física y cableado corre por cuenta de EDENOR o un tercero.
+Backhaul: IP Backhaul existente, pero no está claro si llega a los 21 sitios nuevos.
+DMS y HES son sistemas del cliente (protocolos a confirmar: ¿IEC 104, DNP3?).`;
+}
+
+// ── MAIN ANALYSIS ──
+async function runAnalysis() {
+  const txt=document.getElementById('req').value.trim();
+  const hasPdf=loadedFile?.type==='pdf';
+  const hasDocx=loadedFile?.type==='docx';
+  if(!txt&&!hasPdf){setSt('⚠ Ingresá texto o subí un archivo antes de analizar.');return;}
+
+  const btn=document.getElementById('abtn');
+  btn.disabled=true;
+  setSt(hasPdf?`Enviando PDF a la IA (${loadedFile.name})...`:'Procesando con IA...',true);
+
+  const scList=SC.map(s=>`${s.id}: ${s.name} (${s.cat}) — ${s.dmin}–${s.dmax} días`).join('\n');
+  const ctx=[
+    document.getElementById('s-client').value&&`Cliente: ${document.getElementById('s-client').value}`,
+    document.getElementById('s-sites').value&&`Sitios: ${document.getElementById('s-sites').value}`,
+    [...chips].length&&`Tecnologías pre-marcadas: ${[...chips].join(', ')}`,
+  ].filter(Boolean).join('\n');
+
+  const sys=`Sos un experto en Professional Services de Huawei EBG Argentina. Analizás requerimientos técnicos y los convertís en análisis estructurados con clasificación de escenarios PS.
+
+ESCENARIOS:
+${scList}
+${ctx?'\nCONTEXTO ADICIONAL:\n'+ctx:''}
+
+Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
+{"client":"","project":"","sites":null,"aps":null,"switches":null,"routers":null,"bbus":null,"mw_links":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
+
+  let userContent;
+  if(hasPdf) {
+    userContent=[
+      {type:"document",source:{type:"base64",media_type:"application/pdf",data:loadedFile.b64}},
+      {type:"text",text:txt?`Texto adicional del usuario:\n${txt}\n\nAnalizá el PDF y generá el JSON.`:"Analizá el PDF y generá el JSON."}
+    ];
+  } else {
+    const full=hasDocx?(loadedFile.text+(txt?'\n\n'+txt:'')):(txt);
+    userContent=full;
+  }
+
+  try {
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":getKey(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,system:sys,messages:[{role:"user",content:userContent}]})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const raw=data.content.map(i=>i.text||'').join('');
+    const r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    const now=new Date();
+    const entry={...r,req:txt||loadedFile?.name||'',date:now.toLocaleDateString('es-AR'),time:now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
+    hist.unshift(entry);
+    document.getElementById('hbadge').textContent=`${hist.length} análisis`;
+
+    autofill(r);
+    updateEscList(r.scenarios,r.is_new?r.new_scenario_name:null);
+
+    document.getElementById('step1').style.display='block';
+    document.getElementById('step2').classList.add('visible');
+    document.getElementById('sn1').className='sn done';
+    document.getElementById('sn1').textContent='✓';
+
+    const ids=(r.scenarios||[]).join(' + ')+(r.is_new?' + NUEVO':'');
+    document.getElementById('res-sub').textContent=`${r.client||'Cliente'} · ${ids} · ${r.days_min}–${r.days_max} días`;
+
+    document.getElementById('metrics').innerHTML=`
+      <div class="metric-card"><div class="metric-label">Días estimados</div><div class="metric-value">${r.days_min}–${r.days_max}</div><div class="metric-sub">${r.days_note||''}</div></div>
+      <div class="metric-card"><div class="metric-label">Escenarios</div><div class="metric-value">${(r.scenarios||[]).length}${r.is_new?'+1':''}</div><div class="metric-sub">${r.is_new?'Incluye escenario nuevo':'Escenarios estándar EBG'}</div></div>`;
+
+    document.getElementById('r-what').textContent=r.what_and_why||'—';
+    document.getElementById('r-asis').textContent=r.as_is||'—';
+    document.getElementById('r-tobe').textContent=r.to_be||'—';
+    document.getElementById('r-gaps').innerHTML=(r.gaps||[]).map(g=>`<div class="gap-item"><span class="gap-icon">?</span><span>${g}</span></div>`).join('')||'<div style="font-size:12px;color:var(--text3);">Sin gaps identificados.</div>';
+    document.getElementById('r-ass').innerHTML=(r.assumptions||[]).map((a,i)=>`<div class="ass-item"><span class="ass-tag">A${i+1}</span><span>${a}</span></div>`).join('')||'<div style="font-size:12px;color:var(--text3);">—</div>';
+    document.getElementById('r-tags').innerHTML=(r.scenarios||[]).map(id=>{const s=SC.find(x=>x.id===id);return`<span class="badge badge-red">${id}${s?' — '+s.name:''}</span>`;}).join('')+(r.is_new&&r.new_scenario_name?`<span class="badge badge-amber">NUEVO: ${r.new_scenario_name}</span>`:'');
+    document.getElementById('r-rat').textContent=r.scenario_rationale||'';
+    document.getElementById('r-sow').innerHTML=(r.sow_scope||[]).map(i=>`<div class="sow-item"><div class="sow-bull"><div class="sow-dot"></div></div><div><div class="sow-title">${i.title}</div><div class="sow-desc">${i.desc}</div></div></div>`).join('')||'—';
+    document.getElementById('r-oos').innerHTML=(r.sow_oos||[]).map(i=>`<div class="oos-item"><span class="oos-x">✗</span><span>${i}</span></div>`).join('')||'—';
+
+    setSt(`Análisis completado · ${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`);
+  } catch(e) {
+    setSt('Error: '+e.message);
+  } finally {
+    btn.disabled=false;
+  }
+}
+
+function renderHist() {
+  const c=document.getElementById('hist-container');
+  if(!hist.length){c.innerHTML='<div class="empty"><div class="empty-icon">◷</div><div style="font-size:13px;">No hay análisis guardados todavía.</div></div>';return;}
+  c.innerHTML=hist.map((h,i)=>`
+    <div class="hist-item" onclick="loadHist(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
+        <div><div class="hist-client">${h.client||'Sin nombre'}</div><div style="font-size:11px;color:var(--text3);">${h.project||''}</div></div>
+        <div style="font-size:11px;color:var(--text3);flex-shrink:0;">${h.date} ${h.time}</div>
+      </div>
+      <div class="hist-preview">${(h.req||'').substring(0,110)}${(h.req||'').length>110?'...':''}</div>
+      <div class="hist-tags">
+        ${(h.scenarios||[]).map(id=>`<span class="badge badge-red">${id}</span>`).join('')}
+        ${h.is_new?'<span class="badge badge-amber">NUEVO</span>':''}
+        <span class="badge badge-gray">${h.days_min}–${h.days_max} días</span>
+      </div>
+    </div>`).join('');
+}
+
+function loadHist(i) {
+  const h=hist[i];
+  document.getElementById('req').value=h.req||'';
+  autofill(h);
+  updateEscList(h.scenarios,h.is_new?h.new_scenario_name:null);
+  switchTab('analyze');
+}
+
+function renderCat() {
+  const cats={};
+  SC.forEach(s=>{if(!cats[s.cat])cats[s.cat]=[];cats[s.cat].push(s);});
+  document.getElementById('catalog').innerHTML=Object.entries(cats).map(([cat,items])=>`
+    <div style="margin-bottom:18px;">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;font-weight:500;">${cat}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">
+        ${items.map(s=>`<div class="pc" style="padding:12px 14px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px;">
+            <div style="font-family:var(--fd);font-size:12px;font-weight:600;color:var(--text);">${s.name}</div>
+            <span class="badge badge-red" style="flex-shrink:0;">${s.id}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${s.desc}</div>
+          <div style="font-size:11px;color:var(--text2);">⏱ ${s.dmin}–${s.dmax} días</div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+renderCat();
+</script>
+
+</div><!-- /app -->
+
+<script>
+function getKey() { return localStorage.getItem('ebg_anthropic_key') || ''; }
+
+function saveKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  const err = document.getElementById('api-err');
+  if (!val.startsWith('sk-ant-') && !val.startsWith('sk-')) {
+    err.classList.add('show');
+    return;
+  }
+  err.classList.remove('show');
+  localStorage.setItem('ebg_anthropic_key', val);
+  document.getElementById('apiscreen').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+}
+
+function resetKey() {
+  if (!confirm('¿Querés cambiar la API key?')) return;
+  localStorage.removeItem('ebg_anthropic_key');
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('apiscreen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+}
+
+// Check on load
+window.addEventListener('DOMContentLoaded', () => {
+  const k = getKey();
+  if (k) {
+    document.getElementById('apiscreen').classList.add('hidden');
+    document.getElementById('app').style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>
