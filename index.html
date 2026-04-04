@@ -231,8 +231,9 @@ textarea.req::placeholder{color:var(--text3);}
     <button class="nav-tab" onclick="switchTab('scenarios')">Escenarios</button>
   </div>
   <div style="display:flex;gap:6px;align-items:center;">
-    <span class="badge badge-red">EBG v2.1</span>
+    <span class="badge badge-red">EBG v3.0</span>
     <span class="badge badge-blue" id="hbadge">0 análisis</span>
+    <span id="key-indicator" onclick="resetKey()" title="Cambiar API key">● key activa</span>
   </div>
 </div>
 
@@ -241,8 +242,19 @@ textarea.req::placeholder{color:var(--text3);}
   <div class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Proyecto</div>
-      <div class="sf"><label>Cliente</label><input id="s-client" placeholder="Ej: EDENOR S.A."></div>
-      <div class="sf"><label>Proyecto</label><input id="s-project" placeholder="Ej: Red eLTE 450MHz"></div>
+      <div class="sf"><label>Partner (quien nos pide)</label><input id="s-partner" placeholder="Ej: Telecom Argentina"></div>
+      <div class="sf"><label>Cliente final</label><input id="s-client" placeholder="Ej: EDENOR S.A."></div>
+      <div class="sf"><label>Nombre del proyecto</label><input id="s-project" placeholder="Ej: Red eLTE 450MHz"></div>
+      <div class="sf"><label>Tipo de negocio</label>
+        <select id="s-biztype" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fm);font-size:12px;padding:5px 8px;outline:none;">
+          <option value="">— Seleccionar —</option>
+          <option value="Canal (Partner → Cliente Final)">Canal (Partner → Cliente Final)</option>
+          <option value="Directo (Huawei → Cliente Final)">Directo (Huawei → Cliente Final)</option>
+          <option value="Licitación Pública">Licitación Pública</option>
+          <option value="B2B Corporativo">B2B Corporativo</option>
+          <option value="B2B Carrier/Telco">B2B Carrier/Telco</option>
+        </select>
+      </div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Dimensiones</div>
@@ -434,15 +446,17 @@ function setChips(vals) {
 }
 
 function autofill(d) {
-  const map={'s-client':d.client,'s-project':d.project,'s-sites':d.sites,'s-aps':d.aps,'s-sw':d.switches,'s-rt':d.routers,'s-bbu':d.bbus,'s-mw':d.mw_links};
+  const map={'s-partner':d.partner,'s-client':d.client_final,'s-project':d.project,'s-sites':d.sites,'s-aps':d.aps,'s-sw':d.switches,'s-rt':d.routers,'s-bbu':d.bbus,'s-mw':d.mw_links};
   Object.entries(map).forEach(([id,v])=>{
     if(v!=null&&v!==''){
       const el=document.getElementById(id);
+      if(!el) return;
       el.value=v;
       el.classList.add('autofilled');
       setTimeout(()=>el.classList.remove('autofilled'),1600);
     }
   });
+  if(d.biz_type){const bt=document.getElementById('s-biztype');if(bt) bt.value=d.biz_type;}
   if(d.technologies?.length) setChips(d.technologies);
 }
 
@@ -550,7 +564,9 @@ async function runAnalysis() {
 
   const scList=SC.map(s=>`${s.id}: ${s.name} (${s.cat}) — ${s.dmin}–${s.dmax} días`).join('\n');
   const ctx=[
-    document.getElementById('s-client').value&&`Cliente: ${document.getElementById('s-client').value}`,
+    document.getElementById('s-partner').value&&`Partner (quien hace el pedido): ${document.getElementById('s-partner').value}`,
+    document.getElementById('s-client').value&&`Cliente final: ${document.getElementById('s-client').value}`,
+    document.getElementById('s-biztype').value&&`Tipo de negocio: ${document.getElementById('s-biztype').value}`,
     document.getElementById('s-sites').value&&`Sitios: ${document.getElementById('s-sites').value}`,
     [...chips].length&&`Tecnologías pre-marcadas: ${[...chips].join(', ')}`,
   ].filter(Boolean).join('\n');
@@ -562,7 +578,7 @@ ${scList}
 ${ctx?'\nCONTEXTO ADICIONAL:\n'+ctx:''}
 
 Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
-{"client":"","project":"","sites":null,"aps":null,"switches":null,"routers":null,"bbus":null,"mw_links":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
+{"partner":"nombre del partner/integrador que hace el pedido o ''","client_final":"nombre del cliente final (usuario de la red) o ''","project":"","biz_type":"tipo de negocio detectado: Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"bbus":null,"mw_links":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
 
   let userContent;
   if(hasPdf) {
@@ -600,7 +616,8 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     document.getElementById('sn1').textContent='✓';
 
     const ids=(r.scenarios||[]).join(' + ')+(r.is_new?' + NUEVO':'');
-    document.getElementById('res-sub').textContent=`${r.client||'Cliente'} · ${ids} · ${r.days_min}–${r.days_max} días`;
+    const whoLabel=r.partner?`${r.partner} → ${r.client_final||'Cliente final'}`:(r.client_final||'Cliente');
+    document.getElementById('res-sub').textContent=`${whoLabel} · ${ids} · ${r.days_min}–${r.days_max} días`;
 
     document.getElementById('metrics').innerHTML=`
       <div class="metric-card"><div class="metric-label">Días estimados</div><div class="metric-value">${r.days_min}–${r.days_max}</div><div class="metric-sub">${r.days_note||''}</div></div>
@@ -630,7 +647,7 @@ function renderHist() {
   c.innerHTML=hist.map((h,i)=>`
     <div class="hist-item" onclick="loadHist(${i})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
-        <div><div class="hist-client">${h.client||'Sin nombre'}</div><div style="font-size:11px;color:var(--text3);">${h.project||''}</div></div>
+        <div><div class="hist-client">${h.partner?h.partner+' → ':''} ${h.client_final||h.client||'Sin nombre'}</div><div style="font-size:11px;color:var(--text3);">${h.project||''} ${h.biz_type?'· '+h.biz_type:''}</div></div>
         <div style="font-size:11px;color:var(--text3);flex-shrink:0;">${h.date} ${h.time}</div>
       </div>
       <div class="hist-preview">${(h.req||'').substring(0,110)}${(h.req||'').length>110?'...':''}</div>
