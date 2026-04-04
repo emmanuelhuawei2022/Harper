@@ -213,6 +213,18 @@ textarea.req::placeholder{color:var(--text3);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
 @keyframes af{0%{background:var(--accentbg);border-color:var(--accentborder);}100%{background:var(--bg3);border-color:var(--border);}}
 .autofilled{animation:af 1.5s ease-out forwards;}
+.prog-wrap{margin-top:10px;display:none;}
+.prog-wrap.show{display:block;}
+.prog-bar{height:4px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:6px;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;width:0%;transition:width 0.4s ease;}
+.prog-steps{display:flex;justify-content:space-between;margin-bottom:4px;}
+.prog-step{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;}
+.prog-step.active{color:var(--accent2);}
+.prog-step.done{color:#4ade80;}
+.prog-step .psdot{width:5px;height:5px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.prog-step.active .psdot{background:var(--accent2);}
+.prog-step.done .psdot{background:#4ade80;}
+.prog-pct{font-size:11px;color:var(--text2);text-align:right;}
 </style>
 
 
@@ -257,39 +269,105 @@ textarea.req::placeholder{color:var(--text3);}
       </div>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Dimensiones</div>
+      <div class="sidebar-label">Networking / Wi-Fi</div>
       <div class="fr2">
         <div class="sf"><label>Sitios</label><input type="number" id="s-sites" placeholder="0" min="0"></div>
         <div class="sf"><label>APs</label><input type="number" id="s-aps" placeholder="0" min="0"></div>
       </div>
       <div class="fr2">
         <div class="sf"><label>Switches</label><input type="number" id="s-sw" placeholder="0" min="0"></div>
-        <div class="sf"><label>Routers</label><input type="number" id="s-rt" placeholder="0" min="0"></div>
+        <div class="sf"><label>Routers / AR</label><input type="number" id="s-rt" placeholder="0" min="0"></div>
       </div>
       <div class="fr2">
+        <div class="sf"><label>Firewalls / USG</label><input type="number" id="s-fw" placeholder="0" min="0"></div>
+        <div class="sf"><label>CloudEngine DC</label><input type="number" id="s-ce" placeholder="0" min="0"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">RAN / Radio</div>
+      <div class="fr2">
         <div class="sf"><label>BBUs</label><input type="number" id="s-bbu" placeholder="0" min="0"></div>
+        <div class="sf"><label>RRUs / AAUs</label><input type="number" id="s-rru" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
         <div class="sf"><label>Links MW</label><input type="number" id="s-mw" placeholder="0" min="0"></div>
+        <div class="sf"><label>Links 450MHz</label><input type="number" id="s-450" placeholder="0" min="0"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Plataformas de gestión</div>
+      <div class="fr2">
+        <div class="sf"><label>NCE-Campus</label><input type="number" id="s-nce-campus" placeholder="0" min="0"></div>
+        <div class="sf"><label>NCE-IP</label><input type="number" id="s-nce-ip" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
+        <div class="sf"><label>NCE-T / NTI</label><input type="number" id="s-nce-t" placeholder="0" min="0"></div>
+        <div class="sf"><label>NCE-FAN</label><input type="number" id="s-nce-fan" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
+        <div class="sf"><label>CampusInsight</label><input type="number" id="s-insight" placeholder="0" min="0"></div>
+        <div class="sf"><label>MAE-e (nodos)</label><input type="number" id="s-mae" placeholder="0" min="0"></div>
+      </div>
+      <div class="sf"><label>CloudCampus AP (lic.)</label><input type="number" id="s-cc-lic" placeholder="0" min="0"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Core / Cloud</div>
+      <div class="fr2">
+        <div class="sf"><label>SPC / EPC (nodos)</label><input type="number" id="s-spc" placeholder="0" min="0"></div>
+        <div class="sf"><label>FusionCompute</label><input type="number" id="s-fc" placeholder="0" min="0"></div>
+      </div>
+      <div class="sf"><label>FusionSphere (VMs)</label><input type="number" id="s-fs" placeholder="0" min="0"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Storage / Backup</div>
+      <div class="fr2">
+        <div class="sf"><label>OceanStor / Dorado</label><input type="number" id="s-stor" placeholder="0" min="0"></div>
+        <div class="sf"><label>OceanProtect</label><input type="number" id="s-op" placeholder="0" min="0"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Video / IoT</div>
+      <div class="fr2">
+        <div class="sf"><label>Cámaras IP</label><input type="number" id="s-cam" placeholder="0" min="0"></div>
+        <div class="sf"><label>NVRs / VMS</label><input type="number" id="s-nvr" placeholder="0" min="0"></div>
+      </div>
+      <div class="fr2">
+        <div class="sf"><label>CPEs industriales</label><input type="number" id="s-cpe" placeholder="0" min="0"></div>
+        <div class="sf"><label>Terminales EP821</label><input type="number" id="s-ep821" placeholder="0" min="0"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Energía</div>
+      <div class="fr2">
+        <div class="sf"><label>Rectif. / APM</label><input type="number" id="s-rect" placeholder="0" min="0"></div>
+        <div class="sf"><label>Sitios off-grid</label><input type="number" id="s-offgrid" placeholder="0" min="0"></div>
       </div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Tecnologías detectadas</div>
       <div id="tech-chips">
-        <span class="chip" data-v="WLAN/Wi-Fi" onclick="toggleChip(this)">Wi-Fi</span>
-        <span class="chip" data-v="Campus LAN" onclick="toggleChip(this)">Campus LAN</span>
-        <span class="chip" data-v="SD-WAN/MPLS" onclick="toggleChip(this)">SD-WAN</span>
-        <span class="chip" data-v="Microwave/Backhaul" onclick="toggleChip(this)">Microwave</span>
-        <span class="chip" data-v="Storage SAN/NAS" onclick="toggleChip(this)">Storage</span>
-        <span class="chip" data-v="Backup/OceanProtect" onclick="toggleChip(this)">Backup</span>
-        <span class="chip" data-v="Video Vigilancia" onclick="toggleChip(this)">CCTV</span>
-        <span class="chip" data-v="Data Center" onclick="toggleChip(this)">Data Center</span>
-        <span class="chip" data-v="NCE/iMaster" onclick="toggleChip(this)">NCE</span>
-        <span class="chip" data-v="RAN/eLTE/Radio" onclick="toggleChip(this)">RAN / eLTE</span>
-        <span class="chip" data-v="Core Network/SPC" onclick="toggleChip(this)">Core</span>
-        <span class="chip" data-v="Firewall/Seguridad" onclick="toggleChip(this)">Firewall</span>
-        <span class="chip" data-v="SCADA/IoT" onclick="toggleChip(this)">SCADA/IoT</span>
-        <span class="chip" data-v="AMI/DCU" onclick="toggleChip(this)">AMI/DCU</span>
-        <span class="chip" data-v="Trunking/PTT" onclick="toggleChip(this)">Trunking</span>
-        <span class="chip" data-v="Energia/Solar" onclick="toggleChip(this)">Energía</span>
+        <span class="chip" data-v="WLAN/Wi-Fi" onclick="toggleChip(this)" title="Wi-Fi Enterprise — APs AirEngine, controladores, NCE Campus&#10;Escenarios: ESC-04, ESC-05, ESC-06&#10;Ej: cobertura de oficinas, campus universitario, hospital">Wi-Fi</span>
+        <span class="chip" data-v="Campus LAN" onclick="toggleChip(this)" title="Switching LAN — switches de acceso/core, VLANs, STP&#10;Escenarios: ESC-01, ESC-02, ESC-03&#10;Ej: red corporativa, edificio de oficinas, planta industrial">Campus LAN</span>
+        <span class="chip" data-v="SD-WAN/MPLS" onclick="toggleChip(this)" title="WAN y SD-WAN — routers AR/NetEngine, NCE-IP, QoS&#10;Escenario: ESC-07&#10;Ej: interconexión de sucursales, reemplazo de MPLS">SD-WAN</span>
+        <span class="chip" data-v="Microwave/Backhaul" onclick="toggleChip(this)" title="Microondas punto a punto — RTN, backhaul inalámbrico&#10;Escenario: ESC-13 (se cobra por enlace)&#10;Ej: sitios sin fibra, backhaul rural, torres eléctricas">Microwave</span>
+        <span class="chip" data-v="Storage SAN/NAS" onclick="toggleChip(this)" title="Almacenamiento — OceanStor, Dorado, SAN/NAS/Object&#10;Escenarios: ESC-08 (básico), ESC-09 (HA+DR), ESC-10 (migración)&#10;Ej: datacenter, virtualización, bases de datos">Storage</span>
+        <span class="chip" data-v="Backup/OceanProtect" onclick="toggleChip(this)" title="Protección de datos — OceanProtect, backup, Air-Gap&#10;Escenarios: ESC-11 (básico), ESC-12 (Air-Gap anti-ransomware)&#10;Ej: backup de VMs, protección contra ransomware">Backup</span>
+        <span class="chip" data-v="Video Vigilancia" onclick="toggleChip(this)" title="Video IP — cámaras AirEngine/HoloSens, NVR, VMS&#10;Escenario: ESC-14&#10;Ej: seguridad perimetral, control de acceso, monitoreo">CCTV</span>
+        <span class="chip" data-v="Data Center" onclick="toggleChip(this)" title="Infraestructura DC — servidores, storage, switches ToR, virtualización&#10;Escenario: ESC-15&#10;Ej: datacenter corporativo, nube privada, HPC">Data Center</span>
+        <span class="chip" data-v="NCE/iMaster" onclick="toggleChip(this)" title="Plataforma de gestión — NCE-Campus, NCE-IP, CampusInsight&#10;Presente en casi todos los escenarios&#10;Ej: upgrade de versión → ESC-16, gestión centralizada multi-sitio">NCE</span>
+        <span class="chip" data-v="RAN/eLTE/Radio" onclick="toggleChip(this)" title="Red de acceso radio — BBU, RRU, eLTE privado, 450MHz&#10;Escenario: NUEVO (combinado con Core)&#10;Ej: red privada LTE para utilities, minería, oil&amp;gas">RAN / eLTE</span>
+        <span class="chip" data-v="Core Network/SPC" onclick="toggleChip(this)" title="Core de red móvil — SPC, EPC, IMS, MAE-e&#10;Escenario: NUEVO (combinado con RAN)&#10;Ej: core para red privada LTE/eLTE, carrier grade">Core</span>
+        <span class="chip" data-v="Firewall/Seguridad" onclick="toggleChip(this)" title="Seguridad de red — HiSecEngine, USG, políticas, NAC&#10;Complementario a ESC-01/02/03/07&#10;Ej: firewall perimetral, segmentación de red, zero trust">Firewall</span>
+        <span class="chip" data-v="SCADA/IoT" onclick="toggleChip(this)" title="Supervisión industrial — SCADA, RTUs, Reclosers, CPEs industriales&#10;Complementario a RAN/eLTE y Microwave&#10;Ej: control de red eléctrica, automatización industrial">SCADA/IoT</span>
+        <span class="chip" data-v="AMI/DCU" onclick="toggleChip(this)" title="Medición inteligente — AMI, DCU, medidores, HES&#10;Complementario a RAN/eLTE&#10;Ej: lectura remota de medidores eléctricos, agua, gas">AMI/DCU</span>
+        <span class="chip" data-v="Trunking/PTT" onclick="toggleChip(this)" title="Comunicaciones de misión crítica — PTT, trunking, terminales EP821&#10;Complementario a RAN/eLTE&#10;Ej: comunicación de cuadrillas, operaciones de campo">Trunking</span>
+        <span class="chip" data-v="Energia/Solar" onclick="toggleChip(this)" title="Infraestructura energética — rectificadores, baterías, solar, APM&#10;Complementario a Microwave y RAN en sitios remotos&#10;Ej: energía para sitios sin red eléctrica, off-grid">Energía</span>
       </div>
     </div>
     <div class="sidebar-section" style="flex:1;">
@@ -343,6 +421,22 @@ textarea.req::placeholder{color:var(--text3);}
             <button class="btn-s" onclick="loadEx()">Ejemplo EDENOR</button>
             <button class="btn-s" onclick="clearAll()">Limpiar</button>
           </div>
+
+          <!-- PROGRESS BAR -->
+          <div class="prog-wrap" id="prog-wrap">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+              <div class="prog-steps">
+                <div class="prog-step" id="ps1"><div class="psdot"></div>Preparando</div>
+                <div class="prog-step" id="ps2" style="margin-left:10px;"><div class="psdot"></div>Enviando</div>
+                <div class="prog-step" id="ps3" style="margin-left:10px;"><div class="psdot"></div>Analizando</div>
+                <div class="prog-step" id="ps4" style="margin-left:10px;"><div class="psdot"></div>Clasificando</div>
+                <div class="prog-step" id="ps5" style="margin-left:10px;"><div class="psdot"></div>Listo</div>
+              </div>
+              <div class="prog-pct" id="prog-pct">0%</div>
+            </div>
+            <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+          </div>
+
           <div class="status" id="status"></div>
         </div>
       </div>
@@ -446,7 +540,18 @@ function setChips(vals) {
 }
 
 function autofill(d) {
-  const map={'s-partner':d.partner,'s-client':d.client_final,'s-project':d.project,'s-sites':d.sites,'s-aps':d.aps,'s-sw':d.switches,'s-rt':d.routers,'s-bbu':d.bbus,'s-mw':d.mw_links};
+  const map={
+    's-partner':d.partner,'s-client':d.client_final,'s-project':d.project,
+    's-sites':d.sites,'s-aps':d.aps,'s-sw':d.switches,'s-rt':d.routers,
+    's-fw':d.firewalls,'s-ce':d.cloudengine,
+    's-bbu':d.bbus,'s-rru':d.rrus,'s-mw':d.mw_links,'s-450':d.links_450,
+    's-nce-campus':d.nce_campus,'s-nce-ip':d.nce_ip,'s-nce-t':d.nce_t,'s-nce-fan':d.nce_fan,
+    's-insight':d.campusinsight,'s-mae':d.mae_e,'s-cc-lic':d.cloudcampus_lic,
+    's-spc':d.spc_nodes,'s-fc':d.fusioncompute,'s-fs':d.fusionsphere_vms,
+    's-stor':d.storage_arrays,'s-op':d.oceanprotect,
+    's-cam':d.cameras,'s-nvr':d.nvrs,'s-cpe':d.cpes,'s-ep821':d.ep821,
+    's-rect':d.rectifiers,'s-offgrid':d.offgrid_sites
+  };
   Object.entries(map).forEach(([id,v])=>{
     if(v!=null&&v!==''){
       const el=document.getElementById(id);
@@ -551,6 +656,49 @@ Backhaul: IP Backhaul existente, pero no está claro si llega a los 21 sitios nu
 DMS y HES son sistemas del cliente (protocolos a confirmar: ¿IEC 104, DNP3?).`;
 }
 
+// ── PROGRESS ──
+let progTimer=null;
+function setProgress(pct, stepIdx) {
+  document.getElementById('prog-wrap').classList.add('show');
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = Math.round(pct)+'%';
+  for(let i=1;i<=5;i++){
+    const el=document.getElementById('ps'+i);
+    el.classList.remove('active','done');
+    if(i<stepIdx) el.classList.add('done');
+    else if(i===stepIdx) el.classList.add('active');
+  }
+}
+
+function hideProgress() {
+  if(progTimer) clearInterval(progTimer);
+  document.getElementById('prog-wrap').classList.remove('show');
+  document.getElementById('prog-fill').style.width='0%';
+  document.getElementById('prog-pct').textContent='0%';
+  for(let i=1;i<=5;i++) document.getElementById('ps'+i).classList.remove('active','done');
+}
+
+function startProgressSim() {
+  // Simula progreso realista mientras la API procesa
+  // Llega hasta 85% solo — el 100% lo ponemos cuando llega la respuesta
+  let pct=0;
+  const steps=[
+    {target:10, step:1, stepIdx:1, delay:80},   // Preparando
+    {target:25, step:0.8, stepIdx:2, delay:60},  // Enviando
+    {target:60, step:0.4, stepIdx:3, delay:80},  // Analizando (más lento)
+    {target:85, step:0.3, stepIdx:4, delay:120}, // Clasificando
+  ];
+  let si=0;
+  setProgress(0,1);
+  progTimer=setInterval(()=>{
+    if(si>=steps.length) return;
+    const s=steps[si];
+    pct=Math.min(pct+s.step, s.target);
+    setProgress(pct, s.stepIdx);
+    if(pct>=s.target) si++;
+  }, 80);
+}
+
 // ── MAIN ANALYSIS ──
 async function runAnalysis() {
   const txt=document.getElementById('req').value.trim();
@@ -560,6 +708,7 @@ async function runAnalysis() {
 
   const btn=document.getElementById('abtn');
   btn.disabled=true;
+  startProgressSim();
   setSt(hasPdf?`Enviando PDF a la IA (${loadedFile.name})...`:'Procesando con IA...',true);
 
   const scList=SC.map(s=>`${s.id}: ${s.name} (${s.cat}) — ${s.dmin}–${s.dmax} días`).join('\n');
@@ -578,7 +727,7 @@ ${scList}
 ${ctx?'\nCONTEXTO ADICIONAL:\n'+ctx:''}
 
 Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
-{"partner":"nombre del partner/integrador que hace el pedido o ''","client_final":"nombre del cliente final (usuario de la red) o ''","project":"","biz_type":"tipo de negocio detectado: Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"bbus":null,"mw_links":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
+{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
 
   let userContent;
   if(hasPdf) {
@@ -634,7 +783,11 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     document.getElementById('r-oos').innerHTML=(r.sow_oos||[]).map(i=>`<div class="oos-item"><span class="oos-x">✗</span><span>${i}</span></div>`).join('')||'—';
 
     setSt(`Análisis completado · ${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`);
+    if(progTimer) clearInterval(progTimer);
+    setProgress(100,5);
+    setTimeout(hideProgress, 1500);
   } catch(e) {
+    hideProgress();
     setSt('Error: '+e.message);
   } finally {
     btn.disabled=false;
