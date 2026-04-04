@@ -449,8 +449,18 @@ textarea.req::placeholder{color:var(--text3);}
             <div class="step-title">Análisis completado</div>
             <div class="step-sub" id="res-sub">—</div>
           </div>
-          <button class="btn-s" onclick="resetStep1()" style="font-size:11px;padding:5px 10px;">Nuevo análisis</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-s" onclick="document.getElementById('boq-input').click()" style="font-size:11px;padding:5px 10px;">
+              📎 Subir BOQ
+            </button>
+            <input type="file" id="boq-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="loadBOQ(this.files[0])">
+            <button class="btn-p" onclick="exportExcel()" id="export-btn" style="font-size:11px;padding:5px 14px;background:#375623;">
+              ⬇ Exportar Excel
+            </button>
+            <button class="btn-s" onclick="resetStep1()" style="font-size:11px;padding:5px 10px;">Nuevo análisis</button>
+          </div>
         </div>
+        <div id="boq-status" style="font-size:11px;color:var(--text3);margin-bottom:8px;display:none;"></div>
 
         <div class="ag" id="metrics"></div>
 
@@ -495,6 +505,7 @@ textarea.req::placeholder{color:var(--text3);}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const SC = [
   {id:"ESC-01",name:"Campus Networking — Pequeño",cat:"Networking",dmin:7,dmax:12,desc:"≤5 switches, ≤50 APs, 1 sitio"},
@@ -848,6 +859,331 @@ function resetKey() {
   document.getElementById('apiscreen').classList.remove('hidden');
   document.getElementById('app').style.display = 'none';
 }
+
+// ── BOQ LOADER ──
+let boqItems = [];
+
+async function loadBOQ(file) {
+  if(!file) return;
+  const boqSt = document.getElementById('boq-status');
+  boqSt.style.display = 'block';
+  boqSt.textContent = `Procesando BOQ: ${file.name}...`;
+
+  if(!window.XLSX) { boqSt.textContent = '⚠ Librería Excel cargando, esperá un segundo.'; return; }
+
+  const ab = await file.arrayBuffer();
+  const wb = XLSX.read(ab, {type:'array'});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+  boqItems = [];
+  for(const row of rows) {
+    const name = String(row[1]||row[2]||'').trim();
+    const qty = parseFloat(row[2]||row[3]||0);
+    const price = parseFloat(row[3]||row[4]||row[5]||0);
+    if(name && qty > 0 && price > 0 && !name.includes('TOTAL') && !name.includes('No.')) {
+      boqItems.push({name, qty: Math.round(qty), unit_price: price});
+    }
+  }
+  boqSt.textContent = `✓ BOQ cargada: ${boqItems.length} ítems desde ${file.name}`;
+  boqSt.style.color = '#4ade80';
+}
+
+// ── EXCEL EXPORT ──
+function exportExcel() {
+  if(!window.XLSX) { alert('Librería de exportación cargando, esperá un segundo.'); return; }
+  if(!currentResult) { alert('Primero realizá un análisis.'); return; }
+
+  const r = currentResult;
+  const wb = XLSX.utils.book_new();
+
+  // Color helpers
+  const C = {
+    DARK_BLU:'1F4E79', MID_BLU:'2E75B6', HUAWEI_R:'CF2026',
+    GREEN:'375623', GREEN_LT:'E2EFDA', AMBER:'ED7D31', AMBER_LT:'FFF2CC',
+    RED_LT:'FCE4D6', BLUE_LT:'DEEAF1', GRAY:'BFBFBF', GRAY_LT:'F2F2F2',
+    WHITE:'FFFFFF', DARK:'1F1F1F', ORANGE:'F8CBAD', YELLOW:'FFFF00', BLUE2:'00B0F0'
+  };
+
+  function cell(v, bold=false, fgColor='1F1F1F', bgColor=null, halign='left', fmt=null, sz=9, italic=false, wrap=false) {
+    const c = {v, t: typeof v==='number'?'n':'s'};
+    const style = {
+      font:{bold, sz, italic, color:{rgb:fgColor}, name:'Calibri'},
+      alignment:{horizontal:halign, vertical:'center', wrapText:wrap},
+      border:{top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}}
+    };
+    if(bgColor) style.fill = {patternType:'solid', fgColor:{rgb:bgColor}};
+    if(fmt) c.z = fmt;
+    c.s = style;
+    return c;
+  }
+
+  function hdr(v, bg=C.DARK_BLU, fg=C.WHITE, sz=11, halign='left') {
+    return cell(v, true, fg, bg, halign, null, sz);
+  }
+
+  function addSheet(name, aoa, cols, merges=[], rowHeights=[]) {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = cols.map(w=>({wch:w}));
+    if(merges.length) ws['!merges'] = merges;
+    if(rowHeights.length) ws['!rows'] = rowHeights.map(h=>({hpt:h}));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+    return ws;
+  }
+
+  const esc = r.scenarios||'ESC-XX';
+  const cli = r.client_final||'Cliente';
+  const par = r.partner||'Partner';
+  const proj = r.project||'Proyecto';
+  const dm = r.days_min||0;
+  const dx = r.days_max||0;
+  const sow = r.sow_scope||[];
+  const oos = r.sow_oos||[];
+  const gaps = r.gaps||[];
+  const assumptions = r.assumptions||[];
+
+  // Rates
+  const RATES = {
+    'PM':{type:'Out',level:'L2',rate:8740.29},
+    'TL':{type:'Local',level:'L3',rate:10443.53},
+    'TD':{type:'Local',level:'L2',rate:6847.36},
+    'TE':{type:'Out',level:'L2',rate:8740.29},
+    'TD_CN':{type:'Chinese',level:'L2',rate:21251.78},
+  };
+
+  // Auto-generate resources from scenario days
+  const totalDays = Math.round((dm+dx)/2);
+  const resources = [
+    {role:'PM', m1:Math.round(totalDays*0.05), m2:Math.round(totalDays*0.1), m3:Math.round(totalDays*0.05), m4:Math.round(totalDays*0.02)},
+    {role:'TD', m1:Math.round(totalDays*0.1), m2:Math.round(totalDays*0.25), m3:Math.round(totalDays*0.1), m4:0},
+    {role:'TE', m1:0, m2:Math.round(totalDays*0.3), m3:Math.round(totalDays*0.2), m4:Math.round(totalDays*0.05)},
+    {role:'TE', m1:0, m2:Math.round(totalDays*0.3), m3:Math.round(totalDays*0.2), m4:Math.round(totalDays*0.05)},
+  ];
+
+  let totalLabor = 0;
+  resources.forEach(res => {
+    const rate = RATES[res.role]?.rate||6847.36;
+    const totalD = res.m1+res.m2+res.m3+res.m4;
+    totalLabor += (totalD * 8 / 176) * rate;
+  });
+  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*b.unit_price,0);
+
+  // ── 1. SUMMARY ──
+  const gng = [
+    ['Requerimiento suficientemente claro', (r.what_and_why||'').length>50?'GO':'REVIEW', ''],
+    ['Solución técnica identificada', esc!=='ESC-XX'?'GO':'NO-GO', ''],
+    ['Cliente / Partner identificado', cli&&cli!=='Cliente'?'GO':'REVIEW', ''],
+    ['Gaps críticos resueltos', gaps.length===0?'GO':'REVIEW', gaps.length?`${gaps.length} gaps pendientes`:''],
+    ['Assumptions documentadas', assumptions.length>0?'GO':'REVIEW', ''],
+    ['BOQ disponible', boqItems.length>0?'GO':'REVIEW', boqItems.length?`${boqItems.length} ítems`:'Pendiente de BOQ'],
+  ];
+
+  const summAoa = [
+    [null],
+    [hdr(`PROFESSIONAL SERVICES — ANALYSIS SUMMARY`,C.HUAWEI_R,C.WHITE,14)],
+    [hdr(`${cli}  ·  ${proj}  ·  ${esc}`,C.DARK_BLU,C.WHITE,10)],
+    [null],
+    [hdr('PROJECT OVERVIEW',C.MID_BLU,C.WHITE,10)],
+    [cell('Partner',true,C.DARK,C.GRAY_LT),cell(par,false,C.DARK,C.WHITE)],
+    [cell('Cliente Final',true,C.DARK,C.GRAY_LT),cell(cli,false,C.DARK,C.WHITE)],
+    [cell('Proyecto',true,C.DARK,C.GRAY_LT),cell(proj,false,C.DARK,C.WHITE)],
+    [cell('Escenario PS',true,C.DARK,C.GRAY_LT),cell(esc,true,C.DARK,C.WHITE)],
+    [cell('Días estimados',true,C.DARK,C.GRAY_LT),cell(`${dm} – ${dx} días hábiles`,false,C.DARK,C.WHITE)],
+    [cell('Tipo de negocio',true,C.DARK,C.GRAY_LT),cell(r.biz_type||'',false,C.DARK,C.WHITE)],
+    [null],
+    [hdr('COST SUMMARY (USD)',C.MID_BLU,C.WHITE,10)],
+    [cell('Labor Cost (PS Services)',false,C.DARK,C.GRAY_LT),cell(totalLabor,false,C.DARK,C.WHITE,'right','$#,##0.00',10)],
+    [cell('HW / License Cost (BOQ)',false,C.DARK,C.GRAY_LT),cell(boqTotal||0,false,C.DARK,C.WHITE,'right','$#,##0.00',10)],
+    [cell('TOTAL',true,C.WHITE,C.DARK_BLU),cell(totalLabor+(boqTotal||0),true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11)],
+    [null],
+    [hdr('GO / NO-GO ASSESSMENT',C.HUAWEI_R,C.WHITE,10)],
+    [cell('Criterio',true,C.DARK,C.GRAY),cell('Status',true,C.DARK,C.GRAY,'center'),cell('Nota',true,C.DARK,C.GRAY)],
+    ...gng.map(([item,status,note])=>{
+      const bg = status==='GO'?C.GREEN_LT:status==='NO-GO'?C.RED_LT:C.AMBER_LT;
+      const fc = status==='GO'?C.GREEN:status==='NO-GO'?'C00000':C.AMBER;
+      return [cell(item,false,C.DARK,C.WHITE),cell(status,true,fc,bg,'center'),cell(note,false,C.DARK,C.WHITE)];
+    })
+  ];
+
+  addSheet('Summary', summAoa,
+    [2,35,30,35,2],
+    [{s:{r:1,c:1},e:{r:1,c:3}},{s:{r:2,c:1},e:{r:2,c:3}},{s:{r:4,c:1},e:{r:4,c:3}}],
+    [{hpt:8},{hpt:32},{hpt:18},{hpt:8},{hpt:20},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:8},{hpt:20}]
+  );
+
+  // ── 2. HR COST ──
+  const hrAoa = [
+    [null],
+    [hdr(`HR COST — ${cli} · ${proj} · ${esc}`,C.DARK_BLU,C.WHITE,12)],
+    [null],
+    [null,null,null,null,null,null,null,null,null,
+     hdr('M-1 Design & Doc',C.ORANGE,C.DARK,9),null,
+     hdr('M1 Commissioning',C.YELLOW,C.DARK,9),null,
+     hdr('M2 Testing & PAC',C.BLUE2,C.DARK,9),null,
+     hdr('M3 KT & Close',C.BLUE2,C.DARK,9),null],
+    ['BU','Dept','Local/Out/CN','Position','Level','Rate (USD/M)','Subtotal (USD)','Total (Months)',
+     'M-1','Days','M1','Days','M2','Days','M3','Days'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...resources.map((res,i)=>{
+      const ri = RATES[res.role]||RATES['TD'];
+      const totalM = ((res.m1+res.m2+res.m3+res.m4)*8/176);
+      const subtotal = totalM * ri.rate;
+      return [
+        cell('PMO',false,C.DARK,C.WHITE,'center'),
+        cell('ARG',false,C.DARK,C.WHITE,'center'),
+        cell(ri.type,false,C.DARK,null,'center'),
+        cell(res.role,false,C.DARK,null,'center'),
+        cell(ri.level,false,C.DARK,null,'center'),
+        cell(ri.rate,false,C.DARK,null,'right','#,##0.00'),
+        cell(Math.round(subtotal*100)/100,false,C.DARK,C.WHITE,'right','$#,##0.00'),
+        cell(Math.round(totalM*100)/100,false,C.DARK,C.WHITE,'right','0.00'),
+        cell((res.m1*8/176),false,C.DARK,null,'right','0.00'),
+        cell(res.m1,false,C.DARK,null,'center'),
+        cell((res.m2*8/176),false,C.DARK,null,'right','0.00'),
+        cell(res.m2,false,C.DARK,null,'center'),
+        cell((res.m3*8/176),false,C.DARK,null,'right','0.00'),
+        cell(res.m3,false,C.DARK,null,'center'),
+        cell((res.m4*8/176),false,C.DARK,null,'right','0.00'),
+        cell(res.m4,false,C.DARK,null,'center'),
+      ];
+    }),
+    [cell('TOTAL MANPOWER',true,C.WHITE,C.DARK_BLU,'center'),null,null,null,null,
+     cell('Labor Cost (USD)',true,C.WHITE,C.DARK_BLU,'right'),
+     cell(Math.round(totalLabor*100)/100,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11),
+     ...Array(9).fill(cell('',false,C.WHITE,C.DARK_BLU))]
+  ];
+  addSheet('HR Cost', hrAoa,
+    [2,8,8,14,18,8,16,16,12,8,12,8,12,8,12,8,2],
+    [{s:{r:1,c:1},e:{r:1,c:15}}]
+  );
+
+  // ── 3. ANALISIS ──
+  const anaAoa = [
+    [null],
+    [hdr(`ANÁLISIS — ${cli} · ${proj}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [cell('1. ¿Qué quiere el cliente y para qué?',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.what_and_why||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('2. Estado Actual de la Red (As-Is)',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.as_is||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('3. La Solución Propuesta (To-Be)',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.to_be||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('4. Escenarios PS Identificados',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(`${esc}\n${r.scenario_rationale||''}`,false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('5. Gaps de Información',true,C.DARK,C.BLUE_LT,null,null,11)],
+    ...gaps.map((g,i)=>[cell(`${i+1}. ${g}`,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'left',null,9,false,true)]),
+  ];
+  addSheet('Analisis', anaAoa, [2,110,2],
+    anaAoa.map((_,i)=>({s:{r:i,c:1},e:{r:i,c:2}}))
+  );
+
+  // ── 4. SOW ──
+  const sowAoa = [
+    [null],
+    [hdr(`STATEMENT OF WORK — ${cli} · ${esc}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('📋  IN SCOPE — ALCANCE DE COMISIONAMIENTO',C.MID_BLU,C.WHITE,10)],
+    [cell('#',true,C.DARK,C.GRAY,'center'),cell('Actividad',true,C.DARK,C.GRAY),cell('Descripción detallada',true,C.DARK,C.GRAY)],
+    ...sow.map((item,i)=>[
+      cell(i+1,true,C.MID_BLU,C.BLUE_LT,'center'),
+      cell(item.title||'',true,C.DARK,C.WHITE),
+      cell(item.desc||'',false,C.DARK,C.WHITE,'left',null,9,false,true)
+    ]),
+    [null],
+    [hdr('🚫  OUT OF SCOPE — FUERA DE ALCANCE',C.HUAWEI_R,C.WHITE,10)],
+    ...oos.map((item,i)=>[
+      cell('✗',true,C.HUAWEI_R,C.WHITE,'center',null,11),
+      cell(item,false,C.DARK,C.RED_LT,'left',null,9,false,true),
+      null
+    ]),
+  ];
+  addSheet('SOW', sowAoa, [2,8,38,68,2],
+    sowAoa.map((_,i)=>({s:{r:i,c:1},e:{r:i,c:1}}))
+  );
+
+  // ── 5. ASSUMPTIONS ──
+  const assAoa = [
+    [null],
+    [hdr(`ASSUMPTIONS — ${cli} · ${proj}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('SUPUESTOS PARA LA COTIZACIÓN',C.AMBER,C.WHITE,10)],
+    ...assumptions.map((a,i)=>[
+      cell(i+1,true,C.WHITE,C.AMBER,'center'),
+      cell(a,false,C.DARK,i%2===0?C.AMBER_LT:C.WHITE,'left',null,9,false,true)
+    ]),
+    [null],
+    [hdr('GAPS DE INFORMACIÓN — PREGUNTAS PENDIENTES AL CLIENTE','595959',C.WHITE,10)],
+    ...gaps.map((g,i)=>[
+      cell('?',true,'BF8F00',C.AMBER_LT,'center'),
+      cell(g,false,C.DARK,C.WHITE,'left',null,9,false,true)
+    ]),
+  ];
+  addSheet('Assumptions', assAoa, [2,8,100,2]);
+
+  // ── 6. RACI ──
+  const raciData = [
+    ['Site Survey','S','R','-','Partner conduce los site surveys de viabilidad técnica y logística.'],
+    ['Network Solution Design','R','S','-','Huawei es responsable del HLD/LLD y el diseño de la solución.'],
+    ['Supply of Huawei Equipment','R','-','-','Huawei provee todo el hardware y software de la solución.'],
+    ['Equipment Logistics','-','R','-','El Partner gestiona transporte, aduana, almacenamiento y entrega en sitio.'],
+    ['Physical Installation','-','R','-','El Partner es responsable del montaje físico, cableado y etiquetado.'],
+    ['Civil Works','-','R','-','El Partner ejecuta obras civiles necesarias (fundaciones, torres, ductos).'],
+    ['Commissioning & Config','R','S','-','Huawei lidera el comisionamiento de todos los sistemas.'],
+    ['Testing & Acceptance (PAC)','R','S','A','Huawei ejecuta las pruebas; el Cliente las aprueba.'],
+    ['Knowledge Transfer (KT)','R','-','A','Huawei entrega la capacitación al equipo del cliente.'],
+    ['First-Level Support','-','R','-','El Partner es primer nivel de soporte post-entrega.'],
+    ['Project Management','R','S','I','El PM de Huawei lidera la coordinación y el reporte.'],
+  ];
+  const raciAoa = [
+    [null],
+    [hdr(`RESPONSIBILITY MATRIX — ${cli} · ${esc}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('R = Responsible  |  S = Support  |  I = Informed  |  A = Approver',C.GRAY,C.DARK,9)],
+    ['Activity','Huawei (H)','Partner (P)','Customer','Detail'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...raciData.map((row,i)=>{
+      const bg = i%2===0?C.GRAY_LT:C.WHITE;
+      return row.map((v,ci)=>{
+        if(ci===0) return cell(v,true,C.DARK,bg);
+        if(ci===4) return cell(v,false,C.DARK,bg,'left',null,9,false,true);
+        const vc = v==='R'?C.GREEN:v==='S'?C.MID_BLU:v==='I'||v==='A'?C.AMBER:C.DARK;
+        const vbg = v==='R'?C.GREEN_LT:v==='S'?C.BLUE_LT:v==='I'||v==='A'?C.AMBER_LT:bg;
+        return cell(v==='-'?'':v,true,vc,vbg,'center');
+      });
+    }),
+  ];
+  addSheet('Responsability Matrix', raciAoa, [2,40,14,14,14,62,2]);
+
+  // ── 7. BOQ ──
+  const boqAoa = [
+    [null],
+    [hdr(`HW & LICENSE BOQ — ${cli} · ${proj}`,C.HUAWEI_R,C.WHITE,13)],
+    [null],
+    [hdr('BILL OF QUANTITIES — Hardware & Software Licenses',C.DARK_BLU,C.WHITE,10)],
+    ['#','Product / Config Name','Qty','Unit Price (USD)','Total (USD)'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...(boqItems.length ? [
+      ...boqItems.map((item,i)=>[
+        cell(i+1,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
+        cell(item.name,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE),
+        cell(item.qty,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
+        cell(item.unit_price,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'right','$#,##0.00'),
+        cell(item.qty*item.unit_price,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'right','$#,##0.00'),
+      ]),
+      [cell('TOTAL BOQ',true,C.WHITE,C.DARK_BLU,'right'),null,null,null,
+       cell(boqTotal,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11)],
+    ] : [
+      [cell('BOQ no cargada — usá el botón "Subir BOQ" para completar esta sección',false,C.AMBER,C.AMBER_LT,'center',null,10,true)]
+    ]),
+  ];
+  addSheet('HW-License BOQ', boqAoa, [2,8,56,12,18,18,2]);
+
+  // ── DOWNLOAD ──
+  const filename = `EBG_PS_${cli.replace(/[^a-zA-Z0-9]/g,'_')}_${esc}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
 </script>
 
 </div><!-- /app -->
