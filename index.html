@@ -390,10 +390,11 @@ textarea.req::placeholder{color:var(--text3);}
           </div>
         </div>
         <div class="pc">
-          <div class="pch"><div class="dot"></div>Documento o texto del requerimiento</div>
+          <div class="pch"><div class="dot"></div>Documentos del proyecto</div>
 
-          <!-- DROP ZONE -->
-          <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()"
+          <!-- UNIFIED DROP ZONE -->
+          <div class="drop-zone" id="dz"
+            onclick="document.getElementById('fi').click()"
             ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
             <div class="drop-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5">
@@ -402,14 +403,16 @@ textarea.req::placeholder{color:var(--text3);}
               </svg>
             </div>
             <div style="flex:1;">
-              <div style="font-size:12px;color:var(--text2);font-weight:500;" id="dz-title">Arrastrá un archivo o hacé click para seleccionar</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:1px;">PDF · Word (.docx) — hasta 20 MB</div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;" id="dz-title">Arrastrá archivos o hacé click — podés subir varios a la vez</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:1px;">Requerimiento: PDF · Word (.docx) &nbsp;|&nbsp; BOQ: Excel (.xlsx) — se detectan automáticamente</div>
             </div>
-            <div id="fbadge" style="display:none;"><span class="badge badge-blue" id="fname"></span></div>
           </div>
-          <input type="file" id="fi" accept=".pdf,.docx" style="display:none;" onchange="onFile(this.files[0])">
+          <input type="file" id="fi" accept=".pdf,.docx,.xlsx,.xls" multiple style="display:none;" onchange="handleAllFiles(this.files)">
 
-          <div class="sep"><div class="sep-line"></div><span class="sep-txt">o pegá el texto</span><div class="sep-line"></div></div>
+          <!-- FILE PILLS -->
+          <div id="file-pills" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
+
+          <div class="sep"><div class="sep-line"></div><span class="sep-txt">o pegá el texto del requerimiento</span><div class="sep-line"></div></div>
 
           <textarea class="req" id="req" placeholder="Pegá aquí el requerimiento completo del cliente — mail, RFP, notas de reunión, descripción técnica..."></textarea>
 
@@ -450,17 +453,13 @@ textarea.req::placeholder{color:var(--text3);}
             <div class="step-sub" id="res-sub">—</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="btn-s" onclick="document.getElementById('boq-input').click()" style="font-size:11px;padding:5px 10px;">
-              📎 Subir BOQ
-            </button>
-            <input type="file" id="boq-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="loadBOQ(this.files[0])">
             <button class="btn-p" onclick="exportExcel()" id="export-btn" style="font-size:11px;padding:5px 14px;background:#375623;">
               ⬇ Exportar Excel
             </button>
             <button class="btn-s" onclick="resetStep1()" style="font-size:11px;padding:5px 10px;">Nuevo análisis</button>
           </div>
         </div>
-        <div id="boq-status" style="font-size:11px;color:var(--text3);margin-bottom:8px;display:none;"></div>
+        <div id="boq-status-step2" style="display:none;"></div>
 
         <div class="ag" id="metrics"></div>
 
@@ -480,6 +479,14 @@ textarea.req::placeholder{color:var(--text3);}
             </div>
             <div class="pc"><div class="pch"><div class="dot dot-g"></div>Alcance de comisionamiento (In Scope)</div><div id="r-sow"></div></div>
             <div class="pc"><div class="pch"><div class="dot"></div>Fuera de alcance (Out of Scope)</div><div id="r-oos"></div></div>
+            <div class="pc" id="boq-panel" style="display:none;">
+              <div class="pch"><div class="dot" style="background:#375623;"></div>BOQ cargada — Equipos y Licencias</div>
+              <div id="boq-summary-table"></div>
+              <div id="boq-total-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 0;border-top:1px solid var(--border2);margin-top:6px;">
+                <span style="font-size:12px;font-weight:500;color:var(--text);">TOTAL BOQ</span>
+                <span style="font-size:14px;font-weight:700;color:var(--text);" id="boq-total-val">—</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -526,7 +533,7 @@ const SC = [
   {id:"ESC-16",name:"Upgrade NCE / iMaster",cat:"Software",dmin:4,dmax:8,desc:"Upgrade minor o major"},
 ];
 
-let hist=[], chips=new Set(), loadedFile=null;
+let hist=[], chips=new Set(), loadedFile=null, currentResult=null;
 
 function switchTab(t) {
   document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',['analyze','history','scenarios'][i]===t));
@@ -593,50 +600,89 @@ function setSt(msg,loading=false) {
 // ── DROP ZONE ──
 function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('drag-over');}
 function dzLeave(){document.getElementById('dz').classList.remove('drag-over');}
-function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer.files[0];if(f)onFile(f);}
+function dzDrop(e){e.preventDefault();dzLeave();handleAllFiles(e.dataTransfer.files);}
+
+async function handleAllFiles(files) {
+  if(!files||!files.length) return;
+  const pills = document.getElementById('file-pills');
+  if(pills) pills.innerHTML = '';
+
+  for(const file of Array.from(files)) {
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+    const isPdf = /\.pdf$/i.test(file.name) || file.type==='application/pdf';
+    const isDocx = /\.docx$/i.test(file.name) || file.type.includes('wordprocessingml');
+
+    if(pills) {
+      const pill = document.createElement('span');
+      pill.className = 'badge ' + (isExcel ? 'badge-amber' : 'badge-blue');
+      pill.style.cssText = 'font-size:11px;padding:3px 8px;margin:1px;';
+      pill.textContent = (isExcel ? '📊 ' : '📄 ') + file.name;
+      pills.appendChild(pill);
+    }
+
+    if(isExcel) {
+      await loadBOQ(file);
+    } else if(isPdf || isDocx) {
+      await onFile(file);
+    }
+  }
+
+  const names = Array.from(files).map(f=>f.name);
+  document.getElementById('dz-title').textContent = names.length === 1
+    ? names[0]
+    : `${names.length} archivos cargados`;
+}
 
 function onFile(file) {
-  if(!file) return;
-  const isPdf=file.type==='application/pdf'||file.name.endsWith('.pdf');
-  const isDocx=file.name.endsWith('.docx')||file.type.includes('wordprocessingml');
-  if(!isPdf&&!isDocx){setSt('⚠ Solo se aceptan PDF o Word (.docx)');return;}
-  if(file.size>20*1024*1024){setSt('⚠ El archivo supera los 20MB');return;}
-  document.getElementById('fname').textContent=file.name;
-  document.getElementById('fbadge').style.display='block';
-  document.getElementById('dz-title').textContent=file.name;
-  setSt(`Procesando ${file.name}...`,true);
-  if(isPdf) {
-    const r=new FileReader();
-    r.onload=ev=>{
-      loadedFile={type:'pdf',name:file.name,b64:ev.target.result.split(',')[1]};
-      setSt(`PDF listo — hacé click en "Analizar con IA"`);
-    };
-    r.readAsDataURL(file);
-  } else {
-    if(typeof mammoth==='undefined'){setSt('⚠ Librería DOCX cargando, esperá un segundo e intentá de nuevo.');return;}
-    const r=new FileReader();
-    r.onload=async ev=>{
-      try {
-        const res=await mammoth.extractRawText({arrayBuffer:ev.target.result});
-        if(!res.value.trim()) throw new Error('El documento parece vacío.');
-        loadedFile={type:'docx',name:file.name,text:res.value.trim()};
-        document.getElementById('req').value=res.value.trim();
-        setSt(`Word extraído: ${res.value.length} caracteres`);
-      } catch(e){setSt('⚠ No se pudo leer el Word: '+e.message);loadedFile=null;}
-    };
-    r.readAsArrayBuffer(file);
-  }
+  return new Promise((resolve) => {
+    if(!file) return resolve();
+    const isPdf=file.type==='application/pdf'||file.name.endsWith('.pdf');
+    const isDocx=file.name.endsWith('.docx')||file.type.includes('wordprocessingml');
+    if(!isPdf&&!isDocx){setSt('⚠ Solo se aceptan PDF o Word (.docx)');return resolve();}
+    if(file.size>20*1024*1024){setSt('⚠ El archivo supera los 20MB');return resolve();}
+    setSt(`Procesando ${file.name}...`,true);
+    if(isPdf) {
+      const r=new FileReader();
+      r.onload=ev=>{
+        loadedFile={type:'pdf',name:file.name,b64:ev.target.result.split(',')[1]};
+        setSt(`PDF listo — hacé click en "Analizar con IA"`);
+        resolve();
+      };
+      r.readAsDataURL(file);
+    } else {
+      if(typeof mammoth==='undefined'){setSt('⚠ Librería DOCX cargando, esperá un segundo.');return resolve();}
+      const r=new FileReader();
+      r.onload=async ev=>{
+        try {
+          const res=await mammoth.extractRawText({arrayBuffer:ev.target.result});
+          if(!res.value.trim()) throw new Error('El documento parece vacío.');
+          loadedFile={type:'docx',name:file.name,text:res.value.trim()};
+          document.getElementById('req').value=res.value.trim();
+          setSt(`Word extraído: ${res.value.length} caracteres`);
+        } catch(e){setSt('⚠ No se pudo leer el Word: '+e.message);loadedFile=null;}
+        resolve();
+      };
+      r.readAsArrayBuffer(file);
+    }
+  });
 }
 
 function clearFile() {
   loadedFile=null;
-  document.getElementById('fbadge').style.display='none';
-  document.getElementById('dz-title').textContent='Arrastrá un archivo o hacé click para seleccionar';
   document.getElementById('dz').classList.remove('drag-over');
   document.getElementById('fi').value='';
 }
 
-function clearAll(){document.getElementById('req').value='';clearFile();setSt('');}
+function clearAll(){
+  document.getElementById('req').value='';
+  clearFile();
+  setSt('');
+  boqItems=[];
+  const pills=document.getElementById('file-pills');
+  if(pills) pills.innerHTML='';
+  document.getElementById('dz-title').textContent='Arrastrá archivos o hacé click — podés subir varios a la vez';
+  document.getElementById('fi').value='';
+}
 
 function resetStep1() {
   document.getElementById('step2').classList.remove('visible');
@@ -764,6 +810,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
 
     const now=new Date();
     const entry={...r,req:txt||loadedFile?.name||'',date:now.toLocaleDateString('es-AR'),time:now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
+    currentResult = entry;
     hist.unshift(entry);
     document.getElementById('hbadge').textContent=`${hist.length} análisis`;
 
@@ -797,6 +844,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     if(progTimer) clearInterval(progTimer);
     setProgress(100,5);
     setTimeout(hideProgress, 1500);
+    renderBOQSummary();
   } catch(e) {
     hideProgress();
     setSt('Error: '+e.message);
@@ -860,6 +908,29 @@ function resetKey() {
   document.getElementById('app').style.display = 'none';
 }
 
+function renderBOQSummary() {
+  const panel = document.getElementById('boq-panel');
+  if(!boqItems.length) { panel.style.display='none'; return; }
+  panel.style.display='block';
+
+  const total = boqItems.reduce((s,b)=>s+b.qty*b.unit_price, 0);
+  document.getElementById('boq-total-val').textContent = '$' + total.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const rows = boqItems.slice(0,15).map((item,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);${i===0?'':''}">
+      <span style="font-size:10px;color:var(--text3);min-width:20px;text-align:right;">${i+1}</span>
+      <span style="font-size:11px;color:var(--text);flex:1;line-height:1.4;">${item.name}</span>
+      <span style="font-size:11px;color:var(--text2);min-width:30px;text-align:center;">×${item.qty}</span>
+      <span style="font-size:11px;color:var(--text);min-width:80px;text-align:right;">$${(item.qty*item.unit_price).toLocaleString('es-AR',{minimumFractionDigits:0})}</span>
+    </div>`).join('');
+
+  const extra = boqItems.length > 15
+    ? `<div style="font-size:11px;color:var(--text3);padding:6px 0;text-align:center;">... y ${boqItems.length-15} ítems más</div>`
+    : '';
+
+  document.getElementById('boq-summary-table').innerHTML = rows + extra;
+}
+
 // ── BOQ LOADER ──
 let boqItems = [];
 
@@ -867,7 +938,13 @@ async function loadBOQ(file) {
   if(!file) return;
   const boqSt = document.getElementById('boq-status');
   boqSt.style.display = 'block';
+  boqSt.style.color = 'var(--text3)';
   boqSt.textContent = `Procesando BOQ: ${file.name}...`;
+
+  // Update drop zone UI
+  document.getElementById('boq-dz-title').textContent = file.name;
+  document.getElementById('boq-badge-txt').textContent = file.name;
+  document.getElementById('boq-badge').style.display = 'block';
 
   if(!window.XLSX) { boqSt.textContent = '⚠ Librería Excel cargando, esperá un segundo.'; return; }
 
@@ -881,12 +958,13 @@ async function loadBOQ(file) {
     const name = String(row[1]||row[2]||'').trim();
     const qty = parseFloat(row[2]||row[3]||0);
     const price = parseFloat(row[3]||row[4]||row[5]||0);
-    if(name && qty > 0 && price > 0 && !name.includes('TOTAL') && !name.includes('No.')) {
+    if(name && qty > 0 && price > 0 && !name.includes('TOTAL') && !name.includes('No.') && name.length > 3) {
       boqItems.push({name, qty: Math.round(qty), unit_price: price});
     }
   }
-  boqSt.textContent = `✓ BOQ cargada: ${boqItems.length} ítems desde ${file.name}`;
   boqSt.style.color = '#4ade80';
+  boqSt.textContent = `✓ BOQ cargada: ${boqItems.length} ítems — se incluirá en el Excel exportado`;
+  renderBOQSummary();
 }
 
 // ── EXCEL EXPORT ──
