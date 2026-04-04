@@ -687,6 +687,14 @@ function renderCat() {
 }
 
 renderCat();
+
+function resetKey() {
+  if (!confirm('¿Querés cambiar la API key?')) return;
+  localStorage.removeItem('ebg_anthropic_key');
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('apiscreen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+}
 </script>
 
 </div><!-- /app -->
@@ -707,13 +715,7 @@ function saveKey() {
   document.getElementById('app').style.display = 'block';
 }
 
-function resetKey() {
-  if (!confirm('¿Querés cambiar la API key?')) return;
-  localStorage.removeItem('ebg_anthropic_key');
-  document.getElementById('api-key-input').value = '';
-  document.getElementById('apiscreen').classList.remove('hidden');
-  document.getElementById('app').style.display = 'none';
-}
+
 
 // Check on load
 window.addEventListener('DOMContentLoaded', () => {
