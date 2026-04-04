@@ -412,6 +412,16 @@ textarea.req::placeholder{color:var(--text3);}
           <!-- FILE PILLS -->
           <div id="file-pills" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
 
+          <!-- BOQ INLINE SUMMARY -->
+          <div id="boq-inline" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#4ade80;">📊 BOQ cargada</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text);" id="boq-inline-total">—</span>
+            </div>
+            <div id="boq-inline-list" style="display:flex;flex-direction:column;gap:3px;max-height:140px;overflow-y:auto;"></div>
+            <div id="boq-inline-more" style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center;display:none;"></div>
+          </div>
+
           <div class="sep"><div class="sep-line"></div><span class="sep-txt">o pegá el texto del requerimiento</span><div class="sep-line"></div></div>
 
           <textarea class="req" id="req" placeholder="Pegá aquí el requerimiento completo del cliente — mail, RFP, notas de reunión, descripción técnica..."></textarea>
@@ -605,17 +615,18 @@ function dzDrop(e){e.preventDefault();dzLeave();handleAllFiles(e.dataTransfer.fi
 async function handleAllFiles(files) {
   if(!files||!files.length) return;
   const pills = document.getElementById('file-pills');
-  if(pills) pills.innerHTML = '';
 
   for(const file of Array.from(files)) {
     const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     const isPdf = /\.pdf$/i.test(file.name) || file.type==='application/pdf';
     const isDocx = /\.docx$/i.test(file.name) || file.type.includes('wordprocessingml');
 
+    // Add pill — don't clear existing ones
     if(pills) {
       const pill = document.createElement('span');
       pill.className = 'badge ' + (isExcel ? 'badge-amber' : 'badge-blue');
-      pill.style.cssText = 'font-size:11px;padding:3px 8px;margin:1px;';
+      pill.style.cssText = 'font-size:11px;padding:3px 8px;margin:1px;cursor:default;';
+      pill.title = isExcel ? 'BOQ' : 'Requerimiento';
       pill.textContent = (isExcel ? '📊 ' : '📄 ') + file.name;
       pills.appendChild(pill);
     }
@@ -627,10 +638,11 @@ async function handleAllFiles(files) {
     }
   }
 
-  const names = Array.from(files).map(f=>f.name);
-  document.getElementById('dz-title').textContent = names.length === 1
-    ? names[0]
-    : `${names.length} archivos cargados`;
+  // Update dz title to show count of all loaded files
+  const allPills = pills ? pills.querySelectorAll('span').length : 0;
+  document.getElementById('dz-title').textContent = allPills === 1
+    ? Array.from(pills.querySelectorAll('span'))[0]?.textContent?.replace('📄 ','').replace('📊 ','') || 'Archivo cargado'
+    : `${allPills} archivos cargados`;
 }
 
 function onFile(file) {
@@ -910,25 +922,47 @@ function resetKey() {
 
 function renderBOQSummary() {
   const panel = document.getElementById('boq-panel');
-  if(!boqItems.length) { panel.style.display='none'; return; }
-  panel.style.display='block';
-
+  const inline = document.getElementById('boq-inline');
+  if(!boqItems.length) {
+    if(panel) panel.style.display='none';
+    if(inline) inline.style.display='none';
+    return;
+  }
   const total = boqItems.reduce((s,b)=>s+b.qty*b.unit_price, 0);
-  document.getElementById('boq-total-val').textContent = '$' + total.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  const rows = boqItems.slice(0,15).map((item,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);${i===0?'':''}">
-      <span style="font-size:10px;color:var(--text3);min-width:20px;text-align:right;">${i+1}</span>
-      <span style="font-size:11px;color:var(--text);flex:1;line-height:1.4;">${item.name}</span>
-      <span style="font-size:11px;color:var(--text2);min-width:30px;text-align:center;">×${item.qty}</span>
-      <span style="font-size:11px;color:var(--text);min-width:80px;text-align:right;">$${(item.qty*item.unit_price).toLocaleString('es-AR',{minimumFractionDigits:0})}</span>
-    </div>`).join('');
+  // Step 1 inline
+  if(inline) {
+    inline.style.display = 'block';
+    document.getElementById('boq-inline-total').textContent = fmt(total);
+    const list = document.getElementById('boq-inline-list');
+    list.innerHTML = boqItems.slice(0,8).map((item,i) =>
+      `<div style="display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);">` +
+      `<span style="font-size:10px;color:var(--text3);min-width:18px;text-align:right;">${i+1}</span>` +
+      `<span style="font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name}</span>` +
+      `<span style="font-size:10px;color:var(--text3);min-width:28px;text-align:center;">x${item.qty}</span>` +
+      `<span style="font-size:11px;color:var(--text);min-width:72px;text-align:right;">${fmt(item.qty*item.unit_price)}</span>` +
+      `</div>`).join('');
+    const more = document.getElementById('boq-inline-more');
+    if(boqItems.length > 8) {
+      more.style.display='block';
+      more.textContent = '... y ' + (boqItems.length - 8) + ' items mas';
+    } else { more.style.display='none'; }
+  }
 
-  const extra = boqItems.length > 15
-    ? `<div style="font-size:11px;color:var(--text3);padding:6px 0;text-align:center;">... y ${boqItems.length-15} ítems más</div>`
-    : '';
-
-  document.getElementById('boq-summary-table').innerHTML = rows + extra;
+  // Step 2 panel
+  if(panel) {
+    panel.style.display='block';
+    document.getElementById('boq-total-val').textContent = fmt(total);
+    document.getElementById('boq-summary-table').innerHTML = boqItems.slice(0,15).map((item,i) =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">` +
+      `<span style="font-size:10px;color:var(--text3);min-width:20px;text-align:right;">${i+1}</span>` +
+      `<span style="font-size:11px;color:var(--text);flex:1;line-height:1.4;">${item.name}</span>` +
+      `<span style="font-size:11px;color:var(--text2);min-width:30px;text-align:center;">x${item.qty}</span>` +
+      `<span style="font-size:11px;color:var(--text);min-width:80px;text-align:right;">${fmt(item.qty*item.unit_price)}</span>` +
+      `</div>`).join('') +
+      (boqItems.length > 15 ? `<div style="font-size:11px;color:var(--text3);padding:6px 0;text-align:center;">... y ${boqItems.length-15} items mas</div>` : '');
+  }
 }
 
 // ── BOQ LOADER ──
@@ -936,17 +970,14 @@ let boqItems = [];
 
 async function loadBOQ(file) {
   if(!file) return;
-  const boqSt = document.getElementById('boq-status');
-  boqSt.style.display = 'block';
-  boqSt.style.color = 'var(--text3)';
-  boqSt.textContent = `Procesando BOQ: ${file.name}...`;
+  // boq status inline
+
+
+  setSt('Procesando BOQ: ' + file.name + '...', true);
 
   // Update drop zone UI
-  document.getElementById('boq-dz-title').textContent = file.name;
-  document.getElementById('boq-badge-txt').textContent = file.name;
-  document.getElementById('boq-badge').style.display = 'block';
 
-  if(!window.XLSX) { boqSt.textContent = '⚠ Librería Excel cargando, esperá un segundo.'; return; }
+  if(!window.XLSX) { setSt('⚠ Librería Excel cargando, esperá un segundo.'); return; }
 
   const ab = await file.arrayBuffer();
   const wb = XLSX.read(ab, {type:'array'});
@@ -962,8 +993,8 @@ async function loadBOQ(file) {
       boqItems.push({name, qty: Math.round(qty), unit_price: price});
     }
   }
-  boqSt.style.color = '#4ade80';
-  boqSt.textContent = `✓ BOQ cargada: ${boqItems.length} ítems — se incluirá en el Excel exportado`;
+
+  setSt('✓ BOQ cargada: ' + boqItems.length + ' ítems');
   renderBOQSummary();
 }
 
