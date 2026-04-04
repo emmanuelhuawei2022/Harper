@@ -642,7 +642,10 @@ async function handleAllFiles(files) {
   const allPills = pills ? pills.querySelectorAll('span').length : 0;
   document.getElementById('dz-title').textContent = allPills === 1
     ? Array.from(pills.querySelectorAll('span'))[0]?.textContent?.replace('📄 ','').replace('📊 ','') || 'Archivo cargado'
-    : `${allPills} archivos cargados`;
+    : `${allPills} archivos cargados — hacé click para agregar más`;
+
+  // Reset file input so new files can be added without clearing existing pills
+  document.getElementById('fi').value = '';
 }
 
 function onFile(file) {
@@ -923,6 +926,7 @@ function resetKey() {
 function renderBOQSummary() {
   const panel = document.getElementById('boq-panel');
   const inline = document.getElementById('boq-inline');
+  console.log('renderBOQSummary called, items:', boqItems.length, 'inline:', !!inline, 'panel:', !!panel);
   if(!boqItems.length) {
     if(panel) panel.style.display='none';
     if(inline) inline.style.display='none';
@@ -970,31 +974,115 @@ let boqItems = [];
 
 async function loadBOQ(file) {
   if(!file) return;
-  // boq status inline
-
-
   setSt('Procesando BOQ: ' + file.name + '...', true);
-
-  // Update drop zone UI
-
   if(!window.XLSX) { setSt('⚠ Librería Excel cargando, esperá un segundo.'); return; }
 
   const ab = await file.arrayBuffer();
   const wb = XLSX.read(ab, {type:'array'});
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
 
   boqItems = [];
-  for(const row of rows) {
-    const name = String(row[1]||row[2]||'').trim();
-    const qty = parseFloat(row[2]||row[3]||0);
-    const price = parseFloat(row[3]||row[4]||row[5]||0);
-    if(name && qty > 0 && price > 0 && !name.includes('TOTAL') && !name.includes('No.') && name.length > 3) {
-      boqItems.push({name, qty: Math.round(qty), unit_price: price});
+
+  // Try all sheets to find items with qty and price
+  for(const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+    // Auto-detect header row and column positions
+    let nameCol=-1, qtyCol=-1, priceCol=-1, headerRow=-1;
+
+    for(let ri=0; ri<Math.min(rows.length,10); ri++) {
+      const row = rows[ri].map(v=>String(v||'').toLowerCase());
+      // Look for header keywords
+      const ni = row.findIndex(v=>v.includes('name')||v.includes('model')||v.includes('config')||v.includes('description')||v.includes('product'));
+      const qi = row.findIndex(v=>v==='qty'||v==='qty.'||v==='quantity'||v==='cantidad');
+      const pi = row.findIndex(v=>v.includes('price')||v.includes('unit')||v.includes('precio')||v.includes('rate'));
+      if(ni>=0 && qi>=0) {
+        nameCol=ni; qtyCol=qi; priceCol=pi>=0?pi:-1; headerRow=ri;
+        break;
+      }
     }
+
+    // If no header found, try positional detection based on data patterns
+    if(nameCol<0) {
+      for(const row of rows.slice(0,15)) {
+        for(let ci=0; ci<row.length; ci++) {
+          const v = row[ci];
+          // Find a cell with product-like string (long text, not a number)
+          if(typeof v==='string' && v.length>5 && isNaN(parseFloat(v)) && !['no.','no','lote','site'].includes(v.toLowerCase().trim())) {
+            // Check if next cells have numbers
+            const nextNums = [row[ci+1],row[ci+2],row[ci+3]].map(x=>parseFloat(x)||0);
+            if(nextNums.some(n=>n>0)) {
+              nameCol=ci;
+              // Find qty (first number > 0 that looks like a count, not a price)
+              for(let ni=ci+1; ni<Math.min(ci+5, row.length); ni++) {
+                const n = parseFloat(row[ni])||0;
+                if(n>0 && n<10000 && Number.isInteger(n)) { qtyCol=ni; break; }
+              }
+              // Find price (larger number)
+              for(let pi=ci+1; pi<Math.min(ci+7, row.length); pi++) {
+                const n = parseFloat(row[pi])||0;
+                if(n>100 && pi!==qtyCol) { priceCol=pi; break; }
+              }
+              break;
+            }
+          }
+        }
+        if(nameCol>=0) break;
+      }
+    }
+
+    // Parse rows
+    const startRow = headerRow>=0 ? headerRow+1 : 0;
+    const skipWords = ['total','no.','no','lote','site','site1','site2','equipment','software','hardware','subtotal','section','category'];
+
+    for(let ri=startRow; ri<rows.length; ri++) {
+      const row = rows[ri];
+      if(!row || !row.some(v=>v!=='')) continue;
+
+      let name='', qty=0, price=0;
+
+      if(nameCol>=0) {
+        name = String(row[nameCol]||row[nameCol-1]||'').trim();
+        qty = nameCol>=0 && qtyCol>=0 ? parseFloat(row[qtyCol])||0 : 0;
+        price = priceCol>=0 ? parseFloat(row[priceCol])||0 : 0;
+      } else {
+        // Fallback: scan each row for name+qty+price pattern
+        for(let ci=0; ci<row.length; ci++) {
+          const v = String(row[ci]||'').trim();
+          if(v.length>5 && isNaN(parseFloat(v))) {
+            const q = parseFloat(row[ci+1]||row[ci+2]||0)||0;
+            const p = parseFloat(row[ci+2]||row[ci+3]||row[ci+4]||0)||0;
+            if(q>0) { name=v; qty=q; price=p; break; }
+          }
+        }
+      }
+
+      // If no price found, look for any number > 100 in the row as price
+      if(name && qty>0 && price===0) {
+        for(const v of row) {
+          const n = parseFloat(v)||0;
+          if(n>100) { price=n; break; }
+        }
+      }
+
+      const nameLower = name.toLowerCase();
+      const isSkip = skipWords.some(w=>nameLower===w||nameLower.startsWith(w+' '));
+
+      if(name && name.length>3 && qty>0 && !isSkip) {
+        boqItems.push({
+          name: name.length>60 ? name.substring(0,60)+'...' : name,
+          qty: Math.round(qty),
+          unit_price: price
+        });
+      }
+    }
+
+    // If we found items in this sheet, stop (avoid duplicates from multiple sheets)
+    if(boqItems.length>0) break;
   }
 
-  setSt('✓ BOQ cargada: ' + boqItems.length + ' ítems');
+  const withPrice = boqItems.filter(b=>b.unit_price>0).length;
+  setSt(`✓ BOQ cargada: ${boqItems.length} ítems${withPrice<boqItems.length?' (algunos sin precio — completar manualmente)':''}`);
   renderBOQSummary();
 }
 
