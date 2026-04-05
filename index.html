@@ -815,26 +815,21 @@ ROLES Y RATES DISPONIBLES (USD/mes):
 - TD (Technical Delivery): Out, L1, $6.539,24/mes — configuración, testing, documentación
 - TE (Technical Engineer): Out, L2, $8.740,29/mes — solo para proyectos complejos multi-sitio o multi-tecnología
 
-FASES DEL PROYECTO (de 2 a 4 según complejidad):
+FASES DEL PROYECTO:
 - M-1: Design, Documentation, Solution and Technical management
 - M1: Commissioning and integration
-- M2: Testing & PAC (solo si hay testing formal o pruebas de aceptación)
-- M3: KT & Close (solo si hay transferencia de conocimiento contractual)
-Para proyectos SIMPLES: solo usá M-1 y M1 (dejá days_m2 y days_m3 en 0).
-Para proyectos MEDIANOS: usá M-1, M1 y M2.
-Para proyectos COMPLEJOS: usá las 4 fases.
 
 REGLAS ESTRICTAS PARA PROPONER RECURSOS — LEÉ CON ATENCIÓN:
 1. MÁXIMO 3 recursos siempre: TL + PM + TD. NUNCA agregues TE salvo que explícitamente haya 5+ sitios Y 3+ tecnologías distintas.
-2. Rangos de DÍAS TOTALES (sumando todos los recursos en todas las fases):
-   - SIMPLE (1 escenario, ≤100 equipos, 1 sitio): 5–15 días totales
-   - MEDIANO (2 escenarios, <500 equipos, <5 sitios): 10–25 días totales  
-   - GRANDE (3+ escenarios, 500+ equipos, 5+ sitios): 15–40 días totales
-3. TOPE ABSOLUTO: 40 días totales. NUNCA superes este valor.
-4. TL: el recurso con MENOS días (supervisa). PM: días similares o menores al TL. TD: el recurso con MÁS días (ejecuta).
-5. Cada recurso devuelve DÍAS (enteros) por fase: days_m1, days_m2, days_m3, days_m4. Las fórmulas del Excel convierten días a meses.
-6. CÁLCULO DE CONTROL: labor cost = suma((días_total × 8 / 176) × rate). Si supera el 10% del BOQ HW, REDUCÍ los días.
-7. EJEMPLO: BOQ $51,827 → TL(3+5+5+2=15d), PM(3+5+5+2=15d), TD(5+15+10+0=30d) = labor ~$10k. Para simple: TL(1+2+0+0), PM(1+2+0+0), TD(2+6+0+0) = 12d, labor ~$4,300.
+2. Rangos de meses TOTALES (sumando los 3 recursos):
+   - SIMPLE (1 escenario, ≤100 equipos, 1 sitio): 0.20–0.50 meses totales
+   - MEDIANO (2 escenarios, <500 equipos, <5 sitios): 0.40–0.80 meses totales  
+   - GRANDE (3+ escenarios, 500+ equipos, 5+ sitios): 0.60–1.40 meses totales
+3. TOPE ABSOLUTO: 1.50 meses totales. NUNCA superes este valor.
+4. Distribución entre roles: TL ≤ 0.25 meses, PM ≤ 0.35 meses, TD ≤ 0.85 meses.
+5. M-1 (diseño) = máximo 30% de los meses de cada recurso. M1 (comisionamiento) = 70%.
+6. CÁLCULO DE CONTROL: Después de proponer los recursos, calculá mentalmente el labor cost = suma(meses × rate). Si supera el 10% del BOQ de equipos (sin Technical Support), REDUCÍ los meses hasta que quede entre 6-10%.
+7. EJEMPLO CONCRETO que DEBÉS seguir: BOQ equipos $51,827 (6 APs indoor + 12 APs outdoor + 90 APs + 2 AC) → TL 0.23m ($2,402), PM 0.32m ($2,797), TD 0.82m ($5,362) = total 1.37m, labor $10,561 (solo si es proyecto grande multi-sede). Para proyecto simple de 1 sede con mismos equipos: TL 0.10m, PM 0.10m, TD 0.37m = 0.57m, labor $4,338.
 
 EXTRACCIÓN DE BOQ:
 Si el documento contiene información de BOQ (tablas de equipos, capturas del Summary, listas de productos), extraé esos items en "boq_items". IMPORTANTE:
@@ -844,7 +839,7 @@ Si el documento contiene información de BOQ (tablas de equipos, capturas del Su
 - Si hay imágenes de tablas, leé los datos de las imágenes con cuidado
 
 Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
-{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":"","boq_items":[{"name":"","qty":0,"unit_price":0}],"boq_total":0,"resources":[{"role":"TL","type":"Local","level":"L3","days_m1":0,"days_m2":0,"days_m3":0,"days_m4":0,"rationale":""},{"role":"PM","type":"Out","level":"L2","days_m1":0,"days_m2":0,"days_m3":0,"days_m4":0,"rationale":""},{"role":"TD","type":"Out","level":"L1","days_m1":0,"days_m2":0,"days_m3":0,"days_m4":0,"rationale":""}],"staffing_rationale":""}`;
+{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":"","boq_items":[{"name":"","qty":0,"unit_price":0}],"boq_total":0,"resources":[{"role":"TL","type":"Local","level":"L3","months_m1":0,"months_m2":0,"rationale":""},{"role":"PM","type":"Out","level":"L2","months_m1":0,"months_m2":0,"rationale":""},{"role":"TD","type":"Out","level":"L1","months_m1":0,"months_m2":0,"rationale":""}],"staffing_rationale":""}`;
   let userContent;
   if(hasPdf) {
     userContent=[
@@ -878,6 +873,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
       // 1. Eliminar TE si hay más de 3 recursos
       if(r.resources.length > 3) {
         r.resources = r.resources.filter(res => res.role !== 'TE').slice(0,3);
+        if(r.resources.length < 3) r.resources = r.resources.slice(0,3); // safety
       }
 
       // 2. Calcular labor cost y verificar contra BOQ HW
@@ -887,36 +883,36 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
       if(hwTotal > 0) {
         let laborCost = r.resources.reduce((s,res) => {
           const rate = (RATES[res.role]||RATES['TD']).rate;
-          const totalDays = (parseInt(res.days_m1)||0)+(parseInt(res.days_m2)||0)+(parseInt(res.days_m3)||0)+(parseInt(res.days_m4)||0);
-          return s + (totalDays * 8 / 176) * rate;
+          return s + ((parseFloat(res.months_m1)||0) + (parseFloat(res.months_m2)||0)) * rate;
         }, 0);
 
-        const maxLabor = hwTotal * 0.10;
+        const maxLabor = hwTotal * 0.10; // 10% del BOQ HW como tope
         
         if(laborCost > maxLabor) {
+          // Escalar proporcionalmente todos los meses para que quede en 8% del BOQ
           const targetLabor = hwTotal * 0.08;
           const scaleFactor = targetLabor / laborCost;
           r.resources.forEach(res => {
-            res.days_m1 = Math.max(0, Math.round((parseInt(res.days_m1)||0) * scaleFactor));
-            res.days_m2 = Math.max(0, Math.round((parseInt(res.days_m2)||0) * scaleFactor));
-            res.days_m3 = Math.max(0, Math.round((parseInt(res.days_m3)||0) * scaleFactor));
-            res.days_m4 = Math.max(0, Math.round((parseInt(res.days_m4)||0) * scaleFactor));
+            res.months_m1 = Math.round((parseFloat(res.months_m1)||0) * scaleFactor * 100) / 100;
+            res.months_m2 = Math.round((parseFloat(res.months_m2)||0) * scaleFactor * 100) / 100;
           });
-          console.log(`POST-PROC: Labor $${Math.round(laborCost)} excedía 10% BOQ ($${Math.round(maxLabor)}). Escalado a 8%, factor: ${scaleFactor.toFixed(3)}`);
+          console.log(`POST-PROC: Labor $${Math.round(laborCost)} excedía 10% BOQ ($${Math.round(maxLabor)}). Escalado a 8% ($${Math.round(targetLabor)}), factor: ${scaleFactor.toFixed(3)}`);
         }
       }
 
-      // 3. Tope absoluto: 40 días totales
-      const grandTotal = r.resources.reduce((s,res) => s+(parseInt(res.days_m1)||0)+(parseInt(res.days_m2)||0)+(parseInt(res.days_m3)||0)+(parseInt(res.days_m4)||0), 0);
-      if(grandTotal > 40) {
-        const scale = 40 / grandTotal;
-        r.resources.forEach(res => {
-          res.days_m1 = Math.max(0, Math.round((parseInt(res.days_m1)||0) * scale));
-          res.days_m2 = Math.max(0, Math.round((parseInt(res.days_m2)||0) * scale));
-          res.days_m3 = Math.max(0, Math.round((parseInt(res.days_m3)||0) * scale));
-          res.days_m4 = Math.max(0, Math.round((parseInt(res.days_m4)||0) * scale));
-        });
-      }
+      // 3. Verificar topes por rol
+      r.resources.forEach(res => {
+        const m1 = parseFloat(res.months_m1)||0;
+        const m2 = parseFloat(res.months_m2)||0;
+        const total = m1 + m2;
+        const caps = {TL: 0.25, PM: 0.35, TD: 0.85};
+        const cap = caps[res.role] || 0.85;
+        if(total > cap) {
+          const scale = cap / total;
+          res.months_m1 = Math.round(m1 * scale * 100) / 100;
+          res.months_m2 = Math.round(m2 * scale * 100) / 100;
+        }
+      });
     }
 
     const now=new Date();
@@ -1038,32 +1034,42 @@ function renderHRCost(r) {
   panel.style.display = 'block';
   const fmt = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  // Calculate totals for each resource (now using DAYS, formulas convert to months)
+  // Calculate totals for each resource
   let totalLabor = 0;
   let totalMonths = 0;
-  let totalDaysAll = 0;
+  let totalDays = 0;
   const rows = resources.map(res => {
     const ri = RATES[res.role] || RATES['TD'];
-    const d1 = parseInt(res.days_m1)||0, d2 = parseInt(res.days_m2)||0;
-    const d3 = parseInt(res.days_m3)||0, d4 = parseInt(res.days_m4)||0;
-    const days = d1+d2+d3+d4;
-    const totalM = days * 8 / 176; // same formula as Excel: =(days*8)/176
+    const m1 = parseFloat(res.months_m1) || 0;
+    const m2 = parseFloat(res.months_m2) || 0;
+    const totalM = m1 + m2;
     const subtotal = totalM * ri.rate;
+    const days_m1 = Math.round(m1 * 22); // ~22 working days/month
+    const days_m2 = Math.round(m2 * 22);
+    const days = days_m1 + days_m2;
     totalLabor += subtotal;
     totalMonths += totalM;
-    totalDaysAll += days;
-    return { ...res, ri, d1, d2, d3, d4, days, totalM, subtotal };
+    totalDays += days;
+    return { ...res, ri, m1, m2, totalM, subtotal, days_m1, days_m2, days };
   });
 
-  // Render table with 4 phases
-  const cols = '40px 50px 58px 28px 80px 80px 45px 30px 30px 30px 30px';
+  // Render table
   document.getElementById('hr-table').innerHTML =
-    `<div style="display:grid;grid-template-columns:${cols};gap:1px;font-size:10px;margin-bottom:4px;">` +
-    ['BU','Type','Pos','Lvl','Rate/M','Subtotal','Meses','M-1','M1','M2','M3'].map(h =>
-      `<span style="color:var(--text3);font-weight:500;text-align:${['Rate/M','Subtotal','Meses'].includes(h)?'right':'center'};">${h}</span>`
-    ).join('') + `</div>` +
+    `<div style="display:grid;grid-template-columns:40px 50px 58px 28px 80px 80px 45px 50px 40px 50px 40px;gap:1px;font-size:10px;margin-bottom:4px;">` +
+    `<span style="color:var(--text3);font-weight:500;">BU</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Type</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Position</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Lvl</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Rate/M</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Subtotal</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Meses</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">M-1</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">Días</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">M1</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">Días</span>` +
+    `</div>` +
     rows.map(row =>
-      `<div style="display:grid;grid-template-columns:${cols};gap:1px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">` +
+      `<div style="display:grid;grid-template-columns:40px 50px 58px 28px 80px 80px 45px 50px 40px 50px 40px;gap:1px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">` +
       `<span style="color:var(--text2);">PMO</span>` +
       `<span style="color:var(--text2);">${row.ri.type}</span>` +
       `<span style="color:var(--text);font-weight:500;">${row.role}</span>` +
@@ -1071,10 +1077,10 @@ function renderHRCost(r) {
       `<span style="color:var(--text2);text-align:right;">${fmt(row.ri.rate)}</span>` +
       `<span style="color:var(--text);text-align:right;">${fmt(row.subtotal)}</span>` +
       `<span style="color:var(--text2);text-align:right;">${row.totalM.toFixed(2)}</span>` +
-      `<span style="color:var(--text3);text-align:center;">${row.d1||'-'}</span>` +
-      `<span style="color:var(--text3);text-align:center;">${row.d2||'-'}</span>` +
-      `<span style="color:var(--text3);text-align:center;">${row.d3||'-'}</span>` +
-      `<span style="color:var(--text3);text-align:center;">${row.d4||'-'}</span>` +
+      `<span style="color:var(--text2);text-align:center;">${row.m1.toFixed(2)}</span>` +
+      `<span style="color:var(--text3);text-align:center;">${row.days_m1}</span>` +
+      `<span style="color:var(--text2);text-align:center;">${row.m2.toFixed(2)}</span>` +
+      `<span style="color:var(--text3);text-align:center;">${row.days_m2}</span>` +
       `</div>`
     ).join('');
 
@@ -1120,13 +1126,13 @@ function renderHRCost(r) {
   if(r.staffing_rationale) {
     ratEl.textContent = r.staffing_rationale;
   } else {
-    ratEl.textContent = `${resources.length} recursos · ${totalMonths.toFixed(2)} meses · ${totalDaysAll} días totales`;
+    ratEl.textContent = `${resources.length} recursos · ${totalMonths.toFixed(2)} meses · ${totalDays} días totales`;
   }
 
   // Update metrics to include labor cost and pricing
   const metricsEl = document.getElementById('metrics');
   metricsEl.innerHTML += `
-    <div class="metric-card"><div class="metric-label">Labor Cost</div><div class="metric-value" style="font-size:16px;">${fmt(totalLabor)}</div><div class="metric-sub">${resources.length} recursos · ${totalDaysAll} días</div></div>
+    <div class="metric-card"><div class="metric-label">Labor Cost</div><div class="metric-value" style="font-size:16px;">${fmt(totalLabor)}</div><div class="metric-sub">${resources.length} recursos · ${totalDays} días</div></div>
     <div class="metric-card"><div class="metric-label">Precio Venta PS</div><div class="metric-value" style="font-size:16px;">${psSellPrice > 0 ? fmt(psSellPrice) : 'N/A'}</div><div class="metric-sub">${boqTotal > 0 ? Math.round(psPct*100)+'% de BOQ '+fmt(boqTotal) : 'Sin BOQ'} ${psSellPrice > 0 ? '· Profit: '+fmt(psSellPrice-totalLabor) : ''}</div></div>`;
 
   // Update sidebar PS floor info
@@ -1173,172 +1179,278 @@ function renderBOQFromAI(r) {
 
 // ── EMBEDDED TEMPLATE ──
 
-// ── TEMPLATE BASE64 ──
-const TEMPLATE_B64 = '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';
-
-// ── EXCEL EXPORT (template-based) ──
+// ── EXCEL EXPORT ──
 function exportExcel() {
-  if(!window.XLSX) { alert('Libreria de exportacion cargando, espera un segundo.'); return; }
-  if(!currentResult) { alert('Primero realiza un analisis.'); return; }
+  if(!window.XLSX) { alert('Librería de exportación cargando, esperá un segundo.'); return; }
+  if(!currentResult) { alert('Primero realizá un análisis.'); return; }
 
   const r = currentResult;
+  const wb = XLSX.utils.book_new();
 
-  // Load template
-  const templateBin = atob(TEMPLATE_B64);
-  const templateArr = new Uint8Array(templateBin.length);
-  for(let i=0;i<templateBin.length;i++) templateArr[i]=templateBin.charCodeAt(i);
-  const wb = XLSX.read(templateArr, {type:'array', cellStyles:true});
+  // Color helpers
+  const C = {
+    DARK_BLU:'1F4E79', MID_BLU:'2E75B6', HUAWEI_R:'CF2026',
+    GREEN:'375623', GREEN_LT:'E2EFDA', AMBER:'ED7D31', AMBER_LT:'FFF2CC',
+    RED_LT:'FCE4D6', BLUE_LT:'DEEAF1', GRAY:'BFBFBF', GRAY_LT:'F2F2F2',
+    WHITE:'FFFFFF', DARK:'1F1F1F', ORANGE:'F8CBAD', YELLOW:'FFFF00', BLUE2:'00B0F0'
+  };
 
-  function sc(ws, addr, value) {
-    if(!ws) return;
-    const cell = ws[addr] || {};
-    if(typeof value === 'number') { cell.t='n'; cell.v=value; cell.w=String(value); }
-    else { cell.t='s'; cell.v=String(value||''); cell.w=String(value||''); }
-    ws[addr] = cell;
+  function cell(v, bold=false, fgColor='1F1F1F', bgColor=null, halign='left', fmt=null, sz=9, italic=false, wrap=false) {
+    const c = {v, t: typeof v==='number'?'n':'s'};
+    const style = {
+      font:{bold, sz, italic, color:{rgb:fgColor}, name:'Calibri'},
+      alignment:{horizontal:halign, vertical:'center', wrapText:wrap},
+      border:{top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}}
+    };
+    if(bgColor) style.fill = {patternType:'solid', fgColor:{rgb:bgColor}};
+    if(fmt) c.z = fmt;
+    c.s = style;
+    return c;
   }
 
-  const client = r.client_final||'';
-  const partner = r.partner||'';
-  const project = r.project||'';
-  const scenario = (r.scenarios||[]).join(', ')||'';
-  const dMin = r.days_min||0;
-  const dMax = r.days_max||0;
+  function hdr(v, bg=C.DARK_BLU, fg=C.WHITE, sz=11, halign='left') {
+    return cell(v, true, fg, bg, halign, null, sz);
+  }
 
-  // Resources calculation
-  const resources = (r.resources||[]).slice(0,4);
-  let totalLabor = 0;
-  resources.forEach(res => {
-    const ri = RATES[res.role]||RATES['TD'];
-    const d = (parseInt(res.days_m1)||0)+(parseInt(res.days_m2)||0)+(parseInt(res.days_m3)||0)+(parseInt(res.days_m4)||0);
-    totalLabor += (d*8/176)*ri.rate;
+  function addSheet(name, aoa, cols, merges=[], rowHeights=[]) {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = cols.map(w=>({wch:w}));
+    if(merges.length) ws['!merges'] = merges;
+    if(rowHeights.length) ws['!rows'] = rowHeights.map(h=>({hpt:h}));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+    return ws;
+  }
+
+  const esc = r.scenarios||'ESC-XX';
+  const cli = r.client_final||'Cliente';
+  const par = r.partner||'Partner';
+  const proj = r.project||'Proyecto';
+  const dm = r.days_min||0;
+  const dx = r.days_max||0;
+  const sow = r.sow_scope||[];
+  const oos = r.sow_oos||[];
+  const gaps = r.gaps||[];
+  const assumptions = r.assumptions||[];
+
+  // Use AI-proposed resources with global RATES
+  const aiResources = (r.resources||[]).map(res => {
+    const ri = RATES[res.role] || RATES['TD'];
+    const m1 = parseFloat(res.months_m1) || 0;
+    const m2 = parseFloat(res.months_m2) || 0;
+    const totalM = m1 + m2;
+    const days_m1 = Math.round(m1 * 22);
+    const days_m2 = Math.round(m2 * 22);
+    return { ...res, ri, m1, m2, totalM, days_m1, days_m2, subtotal: totalM * ri.rate };
   });
 
-  const boqHwItems = (r.boq_items||[]).filter(b => !String(b.name||'').toLowerCase().includes('technical support'));
-  const boqTotal = boqHwItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
+  let totalLabor = aiResources.reduce((s,res)=>s+res.subtotal, 0);
+  const boqFbItems = (r.boq_items || []).filter(b => !String(b.name||'').toLowerCase().includes('technical support'));
+  const boqTotal = boqFbItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
 
-  // ── SUMMARY ──
-  const ws1 = wb.Sheets['Summary'];
-  if(ws1) {
-    sc(ws1,'B2','PROFESSIONAL SERVICES - ANALYSIS SUMMARY');
-    sc(ws1,'B3',client+' - '+project+' - '+scenario);
-    sc(ws1,'C6',partner); sc(ws1,'C7',client);
-    sc(ws1,'C8',project); sc(ws1,'C9',scenario);
-    sc(ws1,'C10',dMin+' - '+dMax+' dias habiles');
-    sc(ws1,'C11',r.biz_type||'');
-    sc(ws1,'C14',Math.round(totalLabor*100)/100);
-    sc(ws1,'C15',boqTotal>0?Math.round(boqTotal*100)/100:'Pendiente');
-    sc(ws1,'C16',Math.round((totalLabor+boqTotal)*100)/100);
-    // GO/NO-GO
-    const gng = [
-      [(r.what_and_why||'').length>50?'GO':'REVIEW',''],
-      [scenario?'GO':'NO-GO',''],
-      [client?'GO':'REVIEW',''],
-      [r.gaps&&r.gaps.length?'REVIEW':'GO', r.gaps&&r.gaps.length?r.gaps.length+' gaps pendientes':''],
-      [r.assumptions&&r.assumptions.length?'GO':'REVIEW',''],
-      [boqHwItems.length?'GO':'REVIEW', boqHwItems.length?boqHwItems.length+' items':'Pendiente de BOQ'],
-    ];
-    gng.forEach(([status,note],i)=>{
-      sc(ws1,'C'+(20+i),status);
-      if(note) sc(ws1,'D'+(20+i),note);
-    });
-  }
+  // ── 1. SUMMARY ──
+  const gng = [
+    ['Requerimiento suficientemente claro', (r.what_and_why||'').length>50?'GO':'REVIEW', ''],
+    ['Solución técnica identificada', esc!=='ESC-XX'?'GO':'NO-GO', ''],
+    ['Cliente / Partner identificado', cli&&cli!=='Cliente'?'GO':'REVIEW', ''],
+    ['Gaps críticos resueltos', gaps.length===0?'GO':'REVIEW', gaps.length?`${gaps.length} gaps pendientes`:''],
+    ['Assumptions documentadas', assumptions.length>0?'GO':'REVIEW', ''],
+    ['BOQ disponible', boqFbItems.length>0?'GO':'REVIEW', boqFbItems.length?`${boqFbItems.length} ítems`:'Pendiente de BOQ'],
+  ];
 
-  // ── HR COST — only write days into K,M,O,Q (rows 6-9) — formulas do the rest ──
-  const ws2 = wb.Sheets['HR Cost'];
-  if(ws2) {
-    sc(ws2,'B2','HR COST - '+client+' - '+project+' - '+scenario);
-    resources.forEach((res,i)=>{
-      const ri = RATES[res.role]||RATES['TD'];
-      const row = 6+i;
-      sc(ws2,'B'+row,'PMO');
-      sc(ws2,'C'+row,'ARG');
-      sc(ws2,'D'+row, ri.type);
-      sc(ws2,'E'+row, res.role);
-      sc(ws2,'F'+row, ri.level);
-      sc(ws2,'G'+row, ri.rate);
-      // Days per phase — formulas in J,L,N,P convert to months, H calculates subtotal
-      sc(ws2,'K'+row, parseInt(res.days_m1)||0);
-      sc(ws2,'M'+row, parseInt(res.days_m2)||0);
-      sc(ws2,'O'+row, parseInt(res.days_m3)||0);
-      sc(ws2,'Q'+row, parseInt(res.days_m4)||0);
-    });
-    // Clear unused resource rows
-    for(let i=resources.length; i<4; i++) {
-      const row = 6+i;
-      for(const c of ['B','C','D','E','F','G','K','M','O','Q']) {
-        sc(ws2, c+row, c==='K'||c==='M'||c==='O'||c==='Q' ? 0 : '');
-      }
-    }
-  }
+  const summAoa = [
+    [null],
+    [hdr(`PROFESSIONAL SERVICES — ANALYSIS SUMMARY`,C.HUAWEI_R,C.WHITE,14)],
+    [hdr(`${cli}  ·  ${proj}  ·  ${esc}`,C.DARK_BLU,C.WHITE,10)],
+    [null],
+    [hdr('PROJECT OVERVIEW',C.MID_BLU,C.WHITE,10)],
+    [cell('Partner',true,C.DARK,C.GRAY_LT),cell(par,false,C.DARK,C.WHITE)],
+    [cell('Cliente Final',true,C.DARK,C.GRAY_LT),cell(cli,false,C.DARK,C.WHITE)],
+    [cell('Proyecto',true,C.DARK,C.GRAY_LT),cell(proj,false,C.DARK,C.WHITE)],
+    [cell('Escenario PS',true,C.DARK,C.GRAY_LT),cell(esc,true,C.DARK,C.WHITE)],
+    [cell('Días estimados',true,C.DARK,C.GRAY_LT),cell(`${dm} – ${dx} días hábiles`,false,C.DARK,C.WHITE)],
+    [cell('Tipo de negocio',true,C.DARK,C.GRAY_LT),cell(r.biz_type||'',false,C.DARK,C.WHITE)],
+    [null],
+    [hdr('COST SUMMARY (USD)',C.MID_BLU,C.WHITE,10)],
+    [cell('Labor Cost (PS Services)',false,C.DARK,C.GRAY_LT),cell(totalLabor,false,C.DARK,C.WHITE,'right','$#,##0.00',10)],
+    [cell('HW / License Cost (BOQ)',false,C.DARK,C.GRAY_LT),cell(boqTotal||0,false,C.DARK,C.WHITE,'right','$#,##0.00',10)],
+    [cell('TOTAL',true,C.WHITE,C.DARK_BLU),cell(totalLabor+(boqTotal||0),true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11)],
+    [null],
+    [hdr('GO / NO-GO ASSESSMENT',C.HUAWEI_R,C.WHITE,10)],
+    [cell('Criterio',true,C.DARK,C.GRAY),cell('Status',true,C.DARK,C.GRAY,'center'),cell('Nota',true,C.DARK,C.GRAY)],
+    ...gng.map(([item,status,note])=>{
+      const bg = status==='GO'?C.GREEN_LT:status==='NO-GO'?C.RED_LT:C.AMBER_LT;
+      const fc = status==='GO'?C.GREEN:status==='NO-GO'?'C00000':C.AMBER;
+      return [cell(item,false,C.DARK,C.WHITE),cell(status,true,fc,bg,'center'),cell(note,false,C.DARK,C.WHITE)];
+    })
+  ];
 
-  // ── ANALISIS ──
-  const ws3 = wb.Sheets['Analisis'];
-  if(ws3) {
-    sc(ws3,'B2','ANALISIS - '+client+' - '+project);
-    sc(ws3,'B5', r.what_and_why||'');
-    sc(ws3,'B8', r.as_is||'');
-    sc(ws3,'B11', r.to_be||'');
-    sc(ws3,'B14', scenario+'\n'+(r.scenario_rationale||''));
-    sc(ws3,'B17', (r.gaps||[]).map(g=>'- '+g).join('\n')||'Sin gaps.');
-  }
+  addSheet('Summary', summAoa,
+    [2,35,30,35,2],
+    [{s:{r:1,c:1},e:{r:1,c:3}},{s:{r:2,c:1},e:{r:2,c:3}},{s:{r:4,c:1},e:{r:4,c:3}}],
+    [{hpt:8},{hpt:32},{hpt:18},{hpt:8},{hpt:20},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:16},{hpt:8},{hpt:20}]
+  );
 
-  // ── SOW ──
-  const ws4 = wb.Sheets['SOW'];
-  if(ws4) {
-    sc(ws4,'B2','STATEMENT OF WORK - '+client+' - '+scenario);
-    (r.sow_scope||[]).slice(0,7).forEach((item,i)=>{
-      sc(ws4,'B'+(6+i), i+1);
-      sc(ws4,'C'+(6+i), item.title||'');
-      sc(ws4,'D'+(6+i), item.desc||'');
-    });
-    (r.sow_oos||[]).slice(0,5).forEach((item,i)=>{
-      sc(ws4,'C'+(14+i), item);
-    });
-  }
+  // ── 2. HR COST ──
+  const hrAoa = [
+    [null],
+    [hdr(`HR COST — ${cli} · ${proj} · ${esc}`,C.DARK_BLU,C.WHITE,12)],
+    [null],
+    [null,null,null,null,null,null,null,null,null,
+     hdr('Design, Documentation, Solution and Technical management',C.ORANGE,C.DARK,9),null,
+     hdr('Commissioning and integration',C.YELLOW,C.DARK,9),null],
+    ['BU','Dept','Chinese/Local/Out','Position','Level','Rates','Subtotal','TOTAL (Month)',
+     'M-1','Days','M1','DaysM1'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...aiResources.map((res,i)=>{
+      return [
+        cell('PMO',false,C.DARK,C.WHITE,'center'),
+        cell('ARG',false,C.DARK,C.WHITE,'center'),
+        cell(res.ri.type,false,C.DARK,null,'center'),
+        cell(res.role,false,C.DARK,null,'center'),
+        cell(res.ri.level,false,C.DARK,null,'center'),
+        cell(res.ri.rate,false,C.DARK,null,'right','$#,##0.00'),
+        cell(Math.round(res.subtotal*100)/100,false,C.DARK,C.WHITE,'right','$#,##0.00'),
+        cell(Math.round(res.totalM*100)/100,false,C.DARK,C.WHITE,'right','0.00'),
+        cell(res.m1,false,C.DARK,null,'right','0.00'),
+        cell(res.days_m1,false,C.DARK,null,'center'),
+        cell(res.m2,false,C.DARK,null,'right','0.00'),
+        cell(res.days_m2,false,C.DARK,null,'center'),
+      ];
+    }),
+    [cell('',false,C.WHITE,C.DARK_BLU),null,cell('TOTAL MAN POWER',true,C.WHITE,C.DARK_BLU,'center'),null,null,
+     cell('Labor Cost (USD)',true,C.WHITE,C.DARK_BLU,'right'),
+     cell(Math.round(totalLabor*100)/100,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11),
+     ...Array(5).fill(cell('',false,C.WHITE,C.DARK_BLU))]
+  ];
+  addSheet('HR Cost', hrAoa,
+    [2,8,8,18,18,8,16,16,12,12,8,12,8,2],
+    [{s:{r:1,c:1},e:{r:1,c:12}}]
+  );
 
-  // ── ASSUMPTIONS-GAPS ──
-  const ws5 = wb.Sheets['Assumptions-Gaps'];
-  if(ws5) {
-    sc(ws5,'B2','ASSUMPTIONS - '+client+' - '+project);
-    (r.assumptions||[]).slice(0,5).forEach((a,i)=>{
-      sc(ws5,'C'+(5+i), a);
-    });
-    (r.gaps||[]).slice(0,3).forEach((g,i)=>{
-      sc(ws5,'C'+(13+i), g);
-    });
-  }
+  // ── 3. ANALISIS ──
+  const anaAoa = [
+    [null],
+    [hdr(`ANÁLISIS — ${cli} · ${proj}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [cell('1. ¿Qué quiere el cliente y para qué?',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.what_and_why||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('2. Estado Actual de la Red (As-Is)',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.as_is||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('3. La Solución Propuesta (To-Be)',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(r.to_be||'',false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('4. Escenarios PS Identificados',true,C.DARK,C.BLUE_LT,null,null,11)],
+    [cell(`${esc}\n${r.scenario_rationale||''}`,false,C.DARK,null,'left',null,10,false,true)],
+    [null],
+    [cell('5. Gaps de Información',true,C.DARK,C.BLUE_LT,null,null,11)],
+    ...gaps.map((g,i)=>[cell(`${i+1}. ${g}`,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'left',null,9,false,true)]),
+  ];
+  addSheet('Analisis', anaAoa, [2,110,2],
+    anaAoa.map((_,i)=>({s:{r:i,c:1},e:{r:i,c:2}}))
+  );
 
-  // ── RACI — no changes needed, it's static ──
-  const ws6 = wb.Sheets['Responsability Matrix'];
-  if(ws6) {
-    sc(ws6,'B2','RESPONSIBILITY MATRIX - '+client+' - '+scenario);
-  }
+  // ── 4. SOW ──
+  const sowAoa = [
+    [null],
+    [hdr(`STATEMENT OF WORK — ${cli} · ${esc}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('📋  IN SCOPE — ALCANCE DE COMISIONAMIENTO',C.MID_BLU,C.WHITE,10)],
+    [cell('#',true,C.DARK,C.GRAY,'center'),cell('Actividad',true,C.DARK,C.GRAY),cell('Descripción detallada',true,C.DARK,C.GRAY)],
+    ...sow.map((item,i)=>[
+      cell(i+1,true,C.MID_BLU,C.BLUE_LT,'center'),
+      cell(item.title||'',true,C.DARK,C.WHITE),
+      cell(item.desc||'',false,C.DARK,C.WHITE,'left',null,9,false,true)
+    ]),
+    [null],
+    [hdr('🚫  OUT OF SCOPE — FUERA DE ALCANCE',C.HUAWEI_R,C.WHITE,10)],
+    ...oos.map((item,i)=>[
+      cell('✗',true,C.HUAWEI_R,C.WHITE,'center',null,11),
+      cell(item,false,C.DARK,C.RED_LT,'left',null,9,false,true),
+      null
+    ]),
+  ];
+  addSheet('SOW', sowAoa, [2,8,38,68,2],
+    sowAoa.map((_,i)=>({s:{r:i,c:1},e:{r:i,c:1}}))
+  );
 
-  // ── HW-LICENSE BOQ ──
-  const ws7 = wb.Sheets['HW-License BOQ'];
-  if(ws7) {
-    sc(ws7,'B2','HW & LICENSE BOQ - '+client+' - '+project);
-    if(boqHwItems.length) {
-      boqHwItems.slice(0,50).forEach((item,i)=>{
-        const row = 6+i;
-        sc(ws7,'B'+row, i+1);
-        sc(ws7,'C'+row, item.name||'');
-        sc(ws7,'D'+row, item.qty||0);
-        sc(ws7,'E'+row, item.unit_price||0);
-        sc(ws7,'F'+row, (item.qty||0)*(item.unit_price||0));
+  // ── 5. ASSUMPTIONS ──
+  const assAoa = [
+    [null],
+    [hdr(`ASSUMPTIONS — ${cli} · ${proj}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('SUPUESTOS PARA LA COTIZACIÓN',C.AMBER,C.WHITE,10)],
+    ...assumptions.map((a,i)=>[
+      cell(i+1,true,C.WHITE,C.AMBER,'center'),
+      cell(a,false,C.DARK,i%2===0?C.AMBER_LT:C.WHITE,'left',null,9,false,true)
+    ]),
+    [null],
+    [hdr('GAPS DE INFORMACIÓN — PREGUNTAS PENDIENTES AL CLIENTE','595959',C.WHITE,10)],
+    ...gaps.map((g,i)=>[
+      cell('?',true,'BF8F00',C.AMBER_LT,'center'),
+      cell(g,false,C.DARK,C.WHITE,'left',null,9,false,true)
+    ]),
+  ];
+  addSheet('Assumptions-Gaps', assAoa, [2,8,100,2]);
+
+  // ── 6. RACI ──
+  const raciData = [
+    ['Site Survey','S','R','-','Partner conduce los site surveys de viabilidad técnica y logística.'],
+    ['Network Solution Design','R','S','-','Huawei es responsable del HLD/LLD y el diseño de la solución.'],
+    ['Supply of Huawei Equipment','R','-','-','Huawei provee todo el hardware y software de la solución.'],
+    ['Equipment Logistics','-','R','-','El Partner gestiona transporte, aduana, almacenamiento y entrega en sitio.'],
+    ['Physical Installation','-','R','-','El Partner es responsable del montaje físico, cableado y etiquetado.'],
+    ['Civil Works','-','R','-','El Partner ejecuta obras civiles necesarias (fundaciones, torres, ductos).'],
+    ['Commissioning & Config','R','S','-','Huawei lidera el comisionamiento de todos los sistemas.'],
+    ['Testing & Acceptance (PAC)','R','S','A','Huawei ejecuta las pruebas; el Cliente las aprueba.'],
+    ['Knowledge Transfer (KT)','R','-','A','Huawei entrega la capacitación al equipo del cliente.'],
+    ['First-Level Support','-','R','-','El Partner es primer nivel de soporte post-entrega.'],
+    ['Project Management','R','S','I','El PM de Huawei lidera la coordinación y el reporte.'],
+  ];
+  const raciAoa = [
+    [null],
+    [hdr(`RESPONSIBILITY MATRIX — ${cli} · ${esc}`,C.DARK_BLU,C.WHITE,13)],
+    [null],
+    [hdr('R = Responsible  |  S = Support  |  I = Informed  |  A = Approver',C.GRAY,C.DARK,9)],
+    ['Activity','Huawei (H)','Partner (P)','Customer','Detail'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...raciData.map((row,i)=>{
+      const bg = i%2===0?C.GRAY_LT:C.WHITE;
+      return row.map((v,ci)=>{
+        if(ci===0) return cell(v,true,C.DARK,bg);
+        if(ci===4) return cell(v,false,C.DARK,bg,'left',null,9,false,true);
+        const vc = v==='R'?C.GREEN:v==='S'?C.MID_BLU:v==='I'||v==='A'?C.AMBER:C.DARK;
+        const vbg = v==='R'?C.GREEN_LT:v==='S'?C.BLUE_LT:v==='I'||v==='A'?C.AMBER_LT:bg;
+        return cell(v==='-'?'':v,true,vc,vbg,'center');
       });
-      // Total row
-      const tRow = 6+boqHwItems.length;
-      sc(ws7,'C'+tRow, 'TOTAL BOQ');
-      sc(ws7,'F'+tRow, boqTotal);
-      ws7['!ref'] = 'A1:G'+(tRow+1);
-    } else {
-      sc(ws7,'B6','BOQ no disponible en el documento');
-    }
-  }
+    }),
+  ];
+  addSheet('Responsability Matrix', raciAoa, [2,40,14,14,14,62,2]);
+
+  // ── 7. BOQ ──
+  const boqAoa = [
+    [null],
+    [hdr(`HW & LICENSE BOQ — ${cli} · ${proj}`,C.HUAWEI_R,C.WHITE,13)],
+    [null],
+    [hdr('BILL OF QUANTITIES — Hardware & Software Licenses',C.DARK_BLU,C.WHITE,10)],
+    ['#','Product / Config Name','Qty','Unit Price (USD)','Total (USD)'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...(boqFbItems.length ? [
+      ...boqFbItems.map((item,i)=>[
+        cell(i+1,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
+        cell(item.name,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE),
+        cell(item.qty,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
+        item.unit_price>0 ? cell(item.unit_price,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'right','$#,##0.00') : cell('—',false,'BF8F00',i%2===0?C.GRAY_LT:C.WHITE,'center'),
+        item.unit_price>0 ? cell(item.qty*item.unit_price,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'right','$#,##0.00') : cell('Pendiente',false,'BF8F00',i%2===0?C.GRAY_LT:C.WHITE,'center'),
+      ]),
+      [cell('TOTAL BOQ',true,C.WHITE,C.DARK_BLU,'right'),null,null,null,
+       cell(boqTotal,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11)],
+    ] : [
+      [cell('BOQ no disponible en el documento analizado',false,C.AMBER,C.AMBER_LT,'center',null,10,true)]
+    ]),
+  ];
+  addSheet('HW-License BOQ', boqAoa, [2,8,56,12,18,18,2]);
 
   // ── DOWNLOAD ──
-  const filename = 'EBG_PS_'+client.replace(/[^a-zA-Z0-9]/g,'_')+'_'+scenario.replace(/[^a-zA-Z0-9-]/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  const filename = `EBG_PS_${cli.replace(/[^a-zA-Z0-9]/g,'_')}_${esc}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
