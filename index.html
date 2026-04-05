@@ -350,6 +350,19 @@ textarea.req::placeholder{color:var(--text3);}
       </div>
     </div>
     <div class="sidebar-section">
+      <div class="sidebar-label">PS Cost — Referencia</div>
+      <div class="sf"><label>% PS sobre BOQ (piso)</label>
+        <select id="s-ps-pct" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fm);font-size:12px;padding:5px 8px;outline:none;">
+          <option value="0.15" selected>15% — Estándar</option>
+          <option value="0.18">18% — Medio</option>
+          <option value="0.21">21% — Complejo</option>
+          <option value="0.24">24% — Muy complejo</option>
+        </select>
+      </div>
+      <div id="ps-floor-info" style="font-size:10px;color:var(--text3);padding:4px 0;line-height:1.5;">Piso PS = BOQ × % — sirve como referencia mínima</div>
+    </div>
+
+    <div class="sidebar-section">
       <div class="sidebar-label">Tecnologías detectadas</div>
       <div id="tech-chips">
         <span class="chip" data-v="WLAN/Wi-Fi" onclick="toggleChip(this)" title="Wi-Fi Enterprise — APs AirEngine, controladores, NCE Campus&#10;Escenarios: ESC-04, ESC-05, ESC-06&#10;Ej: cobertura de oficinas, campus universitario, hospital">Wi-Fi</span>
@@ -496,6 +509,16 @@ textarea.req::placeholder{color:var(--text3);}
                 <span style="font-size:12px;font-weight:500;color:var(--text);">TOTAL BOQ</span>
                 <span style="font-size:14px;font-weight:700;color:var(--text);" id="boq-total-val">—</span>
               </div>
+            </div>
+            <div class="pc" id="hr-panel" style="display:none;">
+              <div class="pch"><div class="dot dot-b"></div>HR Cost — Staffing propuesto por IA</div>
+              <div id="hr-table"></div>
+              <div id="hr-total-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 0;border-top:1px solid var(--border2);margin-top:6px;">
+                <span style="font-size:12px;font-weight:500;color:var(--text);">LABOR COST (USD)</span>
+                <span style="font-size:14px;font-weight:700;color:var(--text);" id="hr-total-val">—</span>
+              </div>
+              <div id="hr-floor-warn" style="display:none;margin-top:8px;padding:6px 10px;border-radius:var(--r);font-size:11px;line-height:1.5;"></div>
+              <div id="hr-rationale" style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5;"></div>
             </div>
           </div>
         </div>
@@ -784,12 +807,18 @@ async function runAnalysis() {
   setSt(hasPdf?`Enviando PDF a la IA (${loadedFile.name})...`:'Procesando con IA...',true);
 
   const scList=SC.map(s=>`${s.id}: ${s.name} (${s.cat}) — ${s.dmin}–${s.dmax} días`).join('\n');
+  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
+  const psPct = parseFloat(document.getElementById('s-ps-pct').value)||0.15;
+  const psFloor = boqTotal > 0 ? boqTotal * psPct : 0;
+  const boqSummary = boqItems.length ? `BOQ cargada: ${boqItems.length} items, total equipos: $${boqTotal.toLocaleString('en-US',{minimumFractionDigits:2})}. PS floor (${Math.round(psPct*100)}%): $${psFloor.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'No hay BOQ cargada.';
+
   const ctx=[
     document.getElementById('s-partner').value&&`Partner (quien hace el pedido): ${document.getElementById('s-partner').value}`,
     document.getElementById('s-client').value&&`Cliente final: ${document.getElementById('s-client').value}`,
     document.getElementById('s-biztype').value&&`Tipo de negocio: ${document.getElementById('s-biztype').value}`,
     document.getElementById('s-sites').value&&`Sitios: ${document.getElementById('s-sites').value}`,
     [...chips].length&&`Tecnologías pre-marcadas: ${[...chips].join(', ')}`,
+    boqSummary,
   ].filter(Boolean).join('\n');
 
   const sys=`Sos un experto en Professional Services de Huawei EBG Argentina. Analizás requerimientos técnicos y los convertís en análisis estructurados con clasificación de escenarios PS.
@@ -798,8 +827,29 @@ ESCENARIOS:
 ${scList}
 ${ctx?'\nCONTEXTO ADICIONAL:\n'+ctx:''}
 
+ROLES Y RATES DISPONIBLES (USD/mes):
+- TL (Technical Lead): Local, L3, $10.443,53/mes — lidera diseño técnico, HLD/LLD
+- PM (Project Manager): Out, L2, $8.740,29/mes — coordinación, cronograma, reporting
+- TD (Technical Delivery): Out, L1, $6.539,24/mes — configuración, testing, documentación
+- TE (Technical Engineer): Out, L2, $8.740,29/mes — solo para proyectos complejos multi-sitio o multi-tecnología
+
+FASES DEL PROYECTO:
+- M-1: Design, Documentation, Solution and Technical management
+- M1: Commissioning and integration
+
+REGLAS PARA PROPONER RECURSOS:
+1. Para proyectos SIMPLES (1 escenario, pocos equipos, 1 sitio): 3 recursos (TL + PM + TD), total 0.3–0.8 meses
+2. Para proyectos MEDIANOS (2-3 escenarios, multi-sitio): 3-4 recursos, total 0.5–1.5 meses
+3. Para proyectos COMPLEJOS (3+ escenarios, muchos sitios, migración): 4-5 recursos, total 1.0–3.0 meses
+4. TL siempre tiene menos meses que TD (el TL supervisa, no ejecuta todo)
+5. PM tiene meses similares o menores al TL
+6. TD y TE tienen los meses más altos (son quienes ejecutan)
+7. Distribuí los meses entre M-1 (diseño) y M1 (comisionamiento). Típicamente M-1 ≤ 30% del total del recurso.
+8. El labor cost total debe ser RAZONABLE respecto al costo de equipos (referencia: 10-25% del BOQ).
+${psFloor > 0 ? `9. El PS floor de referencia es $${psFloor.toLocaleString('en-US',{minimumFractionDigits:2})} (${Math.round(psPct*100)}% de BOQ). El labor cost total debería estar cerca de este valor, ni muy por debajo ni muy por encima.` : ''}
+
 Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
-{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":""}`;
+{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":"","resources":[{"role":"TL","type":"Local","level":"L3","months_m1":0,"months_m2":0,"rationale":""},{"role":"PM","type":"Out","level":"L2","months_m1":0,"months_m2":0,"rationale":""},{"role":"TD","type":"Out","level":"L1","months_m1":0,"months_m2":0,"rationale":""}],"staffing_rationale":""}`;
 
   let userContent;
   if(hasPdf) {
@@ -816,7 +866,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":getKey(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,system:sys,messages:[{role:"user",content:userContent}]})
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,system:sys,messages:[{role:"user",content:userContent}]})
     });
     const data=await res.json();
     if(data.error) throw new Error(data.error.message);
@@ -844,6 +894,9 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     document.getElementById('metrics').innerHTML=`
       <div class="metric-card"><div class="metric-label">Días estimados</div><div class="metric-value">${r.days_min}–${r.days_max}</div><div class="metric-sub">${r.days_note||''}</div></div>
       <div class="metric-card"><div class="metric-label">Escenarios</div><div class="metric-value">${(r.scenarios||[]).length}${r.is_new?'+1':''}</div><div class="metric-sub">${r.is_new?'Incluye escenario nuevo':'Escenarios estándar EBG'}</div></div>`;
+
+    // ── HR COST CALCULATION from AI resources ──
+    renderHRCost(r);
 
     document.getElementById('r-what').textContent=r.what_and_why||'—';
     document.getElementById('r-asis').textContent=r.as_is||'—';
@@ -921,6 +974,127 @@ function resetKey() {
   document.getElementById('api-key-input').value = '';
   document.getElementById('apiscreen').classList.remove('hidden');
   document.getElementById('app').style.display = 'none';
+}
+
+// ── HR COST RATES (fixed) ──
+const RATES = {
+  'TL': {type:'Local', level:'L3', rate: 10443.53},
+  'PM': {type:'Out',   level:'L2', rate: 8740.29},
+  'TD': {type:'Out',   level:'L1', rate: 6539.24},
+  'TE': {type:'Out',   level:'L2', rate: 8740.29},
+};
+
+function renderHRCost(r) {
+  const panel = document.getElementById('hr-panel');
+  const resources = r.resources || [];
+  if(!resources.length) { if(panel) panel.style.display='none'; return; }
+
+  panel.style.display = 'block';
+  const fmt = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Calculate totals for each resource
+  let totalLabor = 0;
+  let totalMonths = 0;
+  let totalDays = 0;
+  const rows = resources.map(res => {
+    const ri = RATES[res.role] || RATES['TD'];
+    const m1 = parseFloat(res.months_m1) || 0;
+    const m2 = parseFloat(res.months_m2) || 0;
+    const totalM = m1 + m2;
+    const subtotal = totalM * ri.rate;
+    const days_m1 = Math.round(m1 * 22); // ~22 working days/month
+    const days_m2 = Math.round(m2 * 22);
+    const days = days_m1 + days_m2;
+    totalLabor += subtotal;
+    totalMonths += totalM;
+    totalDays += days;
+    return { ...res, ri, m1, m2, totalM, subtotal, days_m1, days_m2, days };
+  });
+
+  // Render table
+  document.getElementById('hr-table').innerHTML =
+    `<div style="display:grid;grid-template-columns:40px 50px 58px 28px 80px 80px 45px 50px 40px 50px 40px;gap:1px;font-size:10px;margin-bottom:4px;">` +
+    `<span style="color:var(--text3);font-weight:500;">BU</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Type</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Position</span>` +
+    `<span style="color:var(--text3);font-weight:500;">Lvl</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Rate/M</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Subtotal</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:right;">Meses</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">M-1</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">Días</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">M1</span>` +
+    `<span style="color:var(--text3);font-weight:500;text-align:center;">Días</span>` +
+    `</div>` +
+    rows.map(row =>
+      `<div style="display:grid;grid-template-columns:40px 50px 58px 28px 80px 80px 45px 50px 40px 50px 40px;gap:1px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">` +
+      `<span style="color:var(--text2);">PMO</span>` +
+      `<span style="color:var(--text2);">${row.ri.type}</span>` +
+      `<span style="color:var(--text);font-weight:500;">${row.role}</span>` +
+      `<span style="color:var(--text2);">${row.ri.level}</span>` +
+      `<span style="color:var(--text2);text-align:right;">${fmt(row.ri.rate)}</span>` +
+      `<span style="color:var(--text);text-align:right;">${fmt(row.subtotal)}</span>` +
+      `<span style="color:var(--text2);text-align:right;">${row.totalM.toFixed(2)}</span>` +
+      `<span style="color:var(--text2);text-align:center;">${row.m1.toFixed(2)}</span>` +
+      `<span style="color:var(--text3);text-align:center;">${row.days_m1}</span>` +
+      `<span style="color:var(--text2);text-align:center;">${row.m2.toFixed(2)}</span>` +
+      `<span style="color:var(--text3);text-align:center;">${row.days_m2}</span>` +
+      `</div>`
+    ).join('');
+
+  document.getElementById('hr-total-val').textContent = fmt(totalLabor);
+  document.getElementById('hr-total-val').style.color = '#fbbf24';
+
+  // Floor validation
+  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0), 0);
+  const psPct = parseFloat(document.getElementById('s-ps-pct').value)||0.15;
+  const psFloor = boqTotal > 0 ? boqTotal * psPct : 0;
+  const warnEl = document.getElementById('hr-floor-warn');
+
+  if(psFloor > 0) {
+    const pct = Math.round((totalLabor / boqTotal) * 100);
+    if(totalLabor < psFloor * 0.8) {
+      warnEl.style.display = 'block';
+      warnEl.style.background = 'var(--amberbg)';
+      warnEl.style.border = '1px solid var(--amberborder)';
+      warnEl.style.color = '#fbbf24';
+      warnEl.innerHTML = `⚠ Labor cost (${fmt(totalLabor)}) está por debajo del piso de referencia (${fmt(psFloor)} = ${Math.round(psPct*100)}% de BOQ). Representa solo el ${pct}% del BOQ. Revisá el staffing.`;
+    } else if(totalLabor > psFloor * 1.5) {
+      warnEl.style.display = 'block';
+      warnEl.style.background = 'var(--accentbg)';
+      warnEl.style.border = '1px solid var(--accentborder)';
+      warnEl.style.color = 'var(--accent2)';
+      warnEl.innerHTML = `⚠ Labor cost (${fmt(totalLabor)}) supera significativamente el piso (${fmt(psFloor)}). Representa el ${pct}% del BOQ. ¿Está justificado?`;
+    } else {
+      warnEl.style.display = 'block';
+      warnEl.style.background = 'var(--greenbg)';
+      warnEl.style.border = '1px solid rgba(22,163,74,0.3)';
+      warnEl.style.color = '#4ade80';
+      warnEl.innerHTML = `✓ Labor cost (${fmt(totalLabor)}) está en rango — ${pct}% del BOQ (piso ${Math.round(psPct*100)}%: ${fmt(psFloor)})`;
+    }
+  } else {
+    warnEl.style.display = 'none';
+  }
+
+  // Staffing rationale
+  const ratEl = document.getElementById('hr-rationale');
+  if(r.staffing_rationale) {
+    ratEl.textContent = r.staffing_rationale;
+  } else {
+    ratEl.textContent = `${resources.length} recursos · ${totalMonths.toFixed(2)} meses · ${totalDays} días totales`;
+  }
+
+  // Update metrics to include labor cost
+  const metricsEl = document.getElementById('metrics');
+  metricsEl.innerHTML += `
+    <div class="metric-card"><div class="metric-label">Labor Cost</div><div class="metric-value" style="font-size:16px;">${fmt(totalLabor)}</div><div class="metric-sub">${resources.length} recursos · ${totalDays} días</div></div>
+    <div class="metric-card"><div class="metric-label">PS vs BOQ</div><div class="metric-value" style="font-size:16px;">${boqTotal > 0 ? Math.round((totalLabor/boqTotal)*100)+'%' : 'N/A'}</div><div class="metric-sub">${boqTotal > 0 ? 'Piso: '+Math.round(psPct*100)+'% ('+fmt(psFloor)+')' : 'Sin BOQ cargada'}</div></div>`;
+
+  // Update sidebar PS floor info
+  const floorInfo = document.getElementById('ps-floor-info');
+  if(boqTotal > 0) {
+    floorInfo.innerHTML = `BOQ: ${fmt(boqTotal)} → Piso ${Math.round(psPct*100)}%: <strong style="color:var(--text);">${fmt(psFloor)}</strong>`;
+  }
 }
 
 function renderBOQSummary() {
@@ -1143,18 +1317,17 @@ function fillTemplate(wb, r, boqItems) {
   const sowScope  = r.sow_scope||[];
   const sowOos    = r.sow_oos||[];
 
-  const RATES = { PM:8740.29, TL:10443.53, TD:6847.36, TE:8740.29 };
-  const avg = (dMin+dMax)/2;
-  const resources = [
-    {role:'PM',m1:Math.round(avg*0.05),m2:Math.round(avg*0.1),m3:Math.round(avg*0.05),m4:Math.round(avg*0.02)},
-    {role:'TD',m1:Math.round(avg*0.1),m2:Math.round(avg*0.25),m3:Math.round(avg*0.1),m4:0},
-    {role:'TE',m1:0,m2:Math.round(avg*0.3),m3:Math.round(avg*0.2),m4:Math.round(avg*0.05)},
-    {role:'TE',m1:0,m2:Math.round(avg*0.3),m3:Math.round(avg*0.2),m4:Math.round(avg*0.05)},
-  ];
-  const totalLabor = resources.reduce((s,res)=>{
-    const days=res.m1+res.m2+res.m3+res.m4;
-    return s + (days*8/176)*(RATES[res.role]||RATES.TD);
-  },0);
+  // Use AI-proposed resources with fixed rates
+  const resources = (r.resources||[]).map(res => {
+    const ri = RATES[res.role] || RATES['TD'];
+    const m1 = parseFloat(res.months_m1) || 0;
+    const m2 = parseFloat(res.months_m2) || 0;
+    const totalM = m1 + m2;
+    const days_m1 = Math.round(m1 * 22);
+    const days_m2 = Math.round(m2 * 22);
+    return { ...res, ri, m1, m2, totalM, days_m1, days_m2, subtotal: totalM * ri.rate };
+  });
+  const totalLabor = resources.reduce((s,res)=>s+res.subtotal, 0);
   const boqTotal = (boqItems||[]).reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
 
   function sc(ws, addr, value) {
@@ -1174,7 +1347,7 @@ function fillTemplate(wb, r, boqItems) {
     [(boqItems&&boqItems.length)?'GO':'REVIEW',(boqItems&&boqItems.length)?boqItems.length+' items':'Pendiente de BOQ'],
   ];
 
-  // SUMMARY — labels in col B, values in col C (data rows), col B for merged headers
+  // SUMMARY
   const ws1 = wb.Sheets['Summary'];
   if(ws1) {
     sc(ws1,'B3',`${client}  \u00b7  ${project}  \u00b7  ${scenario}`);
@@ -1191,7 +1364,7 @@ function fillTemplate(wb, r, boqItems) {
     });
   }
 
-  // ANALISIS — all content in col B
+  // ANALISIS
   const ws3 = wb.Sheets['Analisis'];
   if(ws3) {
     sc(ws3,'B2',`ANALISIS - ${client} \u00b7 ${project}`);
@@ -1200,15 +1373,29 @@ function fillTemplate(wb, r, boqItems) {
     sc(ws3,'B17',gaps.map(g=>'- '+g).join('\n')||'Sin gaps.');
   }
 
-  // HR COST — only update days cols (K,M,O,Q), keep formulas in H,I,J,L,N,P
+  // HR COST — using AI-proposed resources with 2 phases (M-1, M1)
   const ws2 = wb.Sheets['HR Cost'];
   if(ws2) {
     sc(ws2,'B2',`HR COST - ${client} \u00b7 ${project} \u00b7 ${scenario}`);
     resources.forEach((res,i)=>{
       const row=6+i;
-      sc(ws2,`K${row}`,res.m1||0); sc(ws2,`M${row}`,res.m2||0);
-      sc(ws2,`O${row}`,res.m3||0); sc(ws2,`Q${row}`,res.m4||0);
+      sc(ws2,`B${row}`,'PMO');
+      sc(ws2,`C${row}`,'ARG');
+      sc(ws2,`D${row}`,res.ri.type);
+      sc(ws2,`E${row}`,res.role);
+      sc(ws2,`F${row}`,res.ri.level);
+      sc(ws2,`G${row}`,res.ri.rate);
+      sc(ws2,`H${row}`,Math.round(res.subtotal*100)/100);
+      sc(ws2,`I${row}`,Math.round(res.totalM*100)/100);
+      sc(ws2,`J${row}`,res.m1);
+      sc(ws2,`K${row}`,res.days_m1);
+      sc(ws2,`L${row}`,res.m2);
+      sc(ws2,`M${row}`,res.days_m2);
     });
+    // Total row
+    const totalRow = 6 + resources.length;
+    sc(ws2,`E${totalRow}`,'TOTAL MAN POWER');
+    sc(ws2,`H${totalRow}`,Math.round(totalLabor*100)/100);
   }
 
   // SOW — B=# C=Actividad D=Descripcion, OOS at row 14+
@@ -1328,30 +1515,18 @@ function exportExcel() {
   const gaps = r.gaps||[];
   const assumptions = r.assumptions||[];
 
-  // Rates
-  const RATES = {
-    'PM':{type:'Out',level:'L2',rate:8740.29},
-    'TL':{type:'Local',level:'L3',rate:10443.53},
-    'TD':{type:'Local',level:'L2',rate:6847.36},
-    'TE':{type:'Out',level:'L2',rate:8740.29},
-    'TD_CN':{type:'Chinese',level:'L2',rate:21251.78},
-  };
-
-  // Auto-generate resources from scenario days
-  const totalDays = Math.round((dm+dx)/2);
-  const resources = [
-    {role:'PM', m1:Math.round(totalDays*0.05), m2:Math.round(totalDays*0.1), m3:Math.round(totalDays*0.05), m4:Math.round(totalDays*0.02)},
-    {role:'TD', m1:Math.round(totalDays*0.1), m2:Math.round(totalDays*0.25), m3:Math.round(totalDays*0.1), m4:0},
-    {role:'TE', m1:0, m2:Math.round(totalDays*0.3), m3:Math.round(totalDays*0.2), m4:Math.round(totalDays*0.05)},
-    {role:'TE', m1:0, m2:Math.round(totalDays*0.3), m3:Math.round(totalDays*0.2), m4:Math.round(totalDays*0.05)},
-  ];
-
-  let totalLabor = 0;
-  resources.forEach(res => {
-    const rate = RATES[res.role]?.rate||6847.36;
-    const totalD = res.m1+res.m2+res.m3+res.m4;
-    totalLabor += (totalD * 8 / 176) * rate;
+  // Use AI-proposed resources with global RATES
+  const aiResources = (r.resources||[]).map(res => {
+    const ri = RATES[res.role] || RATES['TD'];
+    const m1 = parseFloat(res.months_m1) || 0;
+    const m2 = parseFloat(res.months_m2) || 0;
+    const totalM = m1 + m2;
+    const days_m1 = Math.round(m1 * 22);
+    const days_m2 = Math.round(m2 * 22);
+    return { ...res, ri, m1, m2, totalM, days_m1, days_m2, subtotal: totalM * ri.rate };
   });
+
+  let totalLabor = aiResources.reduce((s,res)=>s+res.subtotal, 0);
   const boqTotal = boqItems.reduce((s,b)=>s+b.qty*b.unit_price,0);
 
   // ── 1. SUMMARY ──
@@ -1403,43 +1578,34 @@ function exportExcel() {
     [hdr(`HR COST — ${cli} · ${proj} · ${esc}`,C.DARK_BLU,C.WHITE,12)],
     [null],
     [null,null,null,null,null,null,null,null,null,
-     hdr('M-1 Design & Doc',C.ORANGE,C.DARK,9),null,
-     hdr('M1 Commissioning',C.YELLOW,C.DARK,9),null,
-     hdr('M2 Testing & PAC',C.BLUE2,C.DARK,9),null,
-     hdr('M3 KT & Close',C.BLUE2,C.DARK,9),null],
-    ['BU','Dept','Local/Out/CN','Position','Level','Rate (USD/M)','Subtotal (USD)','Total (Months)',
-     'M-1','Days','M1','Days','M2','Days','M3','Days'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
-    ...resources.map((res,i)=>{
-      const ri = RATES[res.role]||RATES['TD'];
-      const totalM = ((res.m1+res.m2+res.m3+res.m4)*8/176);
-      const subtotal = totalM * ri.rate;
+     hdr('Design, Documentation, Solution and Technical management',C.ORANGE,C.DARK,9),null,
+     hdr('Commissioning and integration',C.YELLOW,C.DARK,9),null],
+    ['BU','Dept','Chinese/Local/Out','Position','Level','Rates','Subtotal','TOTAL (Month)',
+     'M-1','Days','M1','DaysM1'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
+    ...aiResources.map((res,i)=>{
       return [
         cell('PMO',false,C.DARK,C.WHITE,'center'),
         cell('ARG',false,C.DARK,C.WHITE,'center'),
-        cell(ri.type,false,C.DARK,null,'center'),
+        cell(res.ri.type,false,C.DARK,null,'center'),
         cell(res.role,false,C.DARK,null,'center'),
-        cell(ri.level,false,C.DARK,null,'center'),
-        cell(ri.rate,false,C.DARK,null,'right','#,##0.00'),
-        cell(Math.round(subtotal*100)/100,false,C.DARK,C.WHITE,'right','$#,##0.00'),
-        cell(Math.round(totalM*100)/100,false,C.DARK,C.WHITE,'right','0.00'),
-        cell((res.m1*8/176),false,C.DARK,null,'right','0.00'),
-        cell(res.m1,false,C.DARK,null,'center'),
-        cell((res.m2*8/176),false,C.DARK,null,'right','0.00'),
-        cell(res.m2,false,C.DARK,null,'center'),
-        cell((res.m3*8/176),false,C.DARK,null,'right','0.00'),
-        cell(res.m3,false,C.DARK,null,'center'),
-        cell((res.m4*8/176),false,C.DARK,null,'right','0.00'),
-        cell(res.m4,false,C.DARK,null,'center'),
+        cell(res.ri.level,false,C.DARK,null,'center'),
+        cell(res.ri.rate,false,C.DARK,null,'right','$#,##0.00'),
+        cell(Math.round(res.subtotal*100)/100,false,C.DARK,C.WHITE,'right','$#,##0.00'),
+        cell(Math.round(res.totalM*100)/100,false,C.DARK,C.WHITE,'right','0.00'),
+        cell(res.m1,false,C.DARK,null,'right','0.00'),
+        cell(res.days_m1,false,C.DARK,null,'center'),
+        cell(res.m2,false,C.DARK,null,'right','0.00'),
+        cell(res.days_m2,false,C.DARK,null,'center'),
       ];
     }),
-    [cell('TOTAL MANPOWER',true,C.WHITE,C.DARK_BLU,'center'),null,null,null,null,
+    [cell('',false,C.WHITE,C.DARK_BLU),null,cell('TOTAL MAN POWER',true,C.WHITE,C.DARK_BLU,'center'),null,null,
      cell('Labor Cost (USD)',true,C.WHITE,C.DARK_BLU,'right'),
      cell(Math.round(totalLabor*100)/100,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11),
-     ...Array(9).fill(cell('',false,C.WHITE,C.DARK_BLU))]
+     ...Array(5).fill(cell('',false,C.WHITE,C.DARK_BLU))]
   ];
   addSheet('HR Cost', hrAoa,
-    [2,8,8,14,18,8,16,16,12,8,12,8,12,8,12,8,2],
-    [{s:{r:1,c:1},e:{r:1,c:15}}]
+    [2,8,8,18,18,8,16,16,12,12,8,12,8,2],
+    [{s:{r:1,c:1},e:{r:1,c:12}}]
   );
 
   // ── 3. ANALISIS ──
