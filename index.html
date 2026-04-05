@@ -860,7 +860,13 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     const data=await res.json();
     if(data.error) throw new Error(data.error.message);
     const raw=data.content.map(i=>i.text||'').join('');
-    const r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    // Extract JSON even if Opus wraps it with text
+    let jsonStr = raw.replace(/```json|```/g,'').trim();
+    const jsonStart = jsonStr.indexOf('{');
+    const jsonEnd = jsonStr.lastIndexOf('}');
+    if(jsonStart < 0 || jsonEnd < 0) throw new Error('La IA no devolvió JSON válido. Intentá de nuevo.');
+    jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
+    const r=JSON.parse(jsonStr);
 
     // ── POST-PROCESAMIENTO: corregir recursos si la IA se pasó ──
     if(r.resources && r.resources.length > 0) {
