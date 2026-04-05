@@ -984,22 +984,40 @@ async function loadBOQ(file) {
   const wb = XLSX.read(ab, {type:'array'});
   boqItems = [];
 
-  const SKIP_SHEETS = ['Cover','Disclaimer','Basic Information','Discount','tmp_v','Summary'];
-  const SKIP_PARTS  = ['Software','Hardware','License','Mainframe','Power','Accessory','Cable'];
   const toNum = v => { const n = parseFloat(String(v||'').replace(/,/g,'.')); return isNaN(n)?0:Math.abs(n); };
 
   // ── DETECT FORMAT from Summary R1 ──
   const wsSumm = wb.Sheets['Summary'];
+  if(!wsSumm) { setSt('⚠ No se encontró la hoja Summary en el archivo.'); return; }
+
+  const summRows = XLSX.utils.sheet_to_json(wsSumm, {header:1, defval:''});
+  const r1 = summRows[0] || [];
+  const hasUnitPrice = r1.some(v => String(v).includes('COL_UNIT_PRICE'));
+  const hasListPrice = r1.some(v => String(v).includes('COL_LIST_PRICE'));
+  const hasDiscount = wb.SheetNames.includes('Discount');
+
   let fmt = 'WithoutPrice';
-  if(wsSumm) {
-    const summRows = XLSX.utils.sheet_to_json(wsSumm, {header:1, defval:''});
-    const r1 = summRows[0] || [];
-    const hasPrice = r1.some(v => String(v).includes('UNIT_PRICE') || String(v).includes('LIST_PRICE'));
-    const hasDiscount = wb.SheetNames.includes('Discount');
-    if(hasPrice && hasDiscount) fmt = 'WithDiscount';
-    else if(hasPrice) fmt = 'ExcludingDiscount';
-  }
+  if(hasListPrice && hasDiscount) fmt = 'WithDiscount';
+  else if(hasUnitPrice) fmt = 'ExcludingDiscount';
   console.log('BOQ format detected:', fmt);
+
+  // ── DETECT PRICE COLUMNS from R1 markers ──
+  // Unit price col: COL_UNIT_PRICE1 (not TOTAL)
+  // For WithDiscount: also has COL_LIST_PRICE
+  let unitPriceCol = -1;
+  let totalPriceCol = -1;
+  for(let ci=0; ci<r1.length; ci++) {
+    const v = String(r1[ci]);
+    if(fmt === 'ExcludingDiscount') {
+      if(v.includes('COL_UNIT_PRICE1') && !v.includes('TOTAL')) unitPriceCol = ci;
+      if(v.includes('COL_TOTAL_PRICE1')) totalPriceCol = ci;
+    } else if(fmt === 'WithDiscount') {
+      // Use discounted price (COL_UNIT_PRICE1), not list price
+      if(v.includes('COL_UNIT_PRICE1') && !v.includes('TOTAL')) unitPriceCol = ci;
+      if(v.includes('COL_TOTAL_PRICE1')) totalPriceCol = ci;
+    }
+  }
+  console.log('Price cols - unit:', unitPriceCol, 'total:', totalPriceCol);
 
   // ── EXTRACT METADATA from Basic Information ──
   const wsMeta = wb.Sheets['Basic Information'];
@@ -1019,107 +1037,87 @@ async function loadBOQ(file) {
     }
   }
 
-  // ── PARSE PRODUCT SHEETS ──
-  for(const sn of wb.SheetNames) {
-    if(SKIP_SHEETS.includes(sn)) continue;
+  // ── PARSE SUMMARY SHEET ONLY ──
+  // Structure:
+  //   Row 1: R1 markers (COL_SORTNO, COL_DESCRIPTION, COL_ADD, etc.)
+  //   Row 9: Header (No., Config Name, Qty., Service Date, [price headers])
+  //   Row 10+: Data
+  //   Col A: metadata string with flags (isServicePart.0 = equipment, isServicePart.1 = service)
+  //   Col C: Site number (when present = site header row, skip)
+  //   Col D: Config Name (product name)
+  //   Col E: Qty
+  //   Price cols: formulas (may or may not resolve in SheetJS)
 
-    const ws = wb.Sheets[sn];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  // Find header row (has "Config Name")
+  let hdrRow = -1;
+  for(let ri=0; ri<Math.min(summRows.length, 15); ri++) {
+    if(summRows[ri].some(v => String(v).trim() === 'Config Name')) { hdrRow = ri; break; }
+  }
+  if(hdrRow < 0) { setSt('⚠ No se encontró el header en Summary.'); return; }
 
-    // Find header row: has 'No.' and 'Part Number'
-    let hdrIdx = -1, hdr = [];
-    for(let ri=0; ri<Math.min(rows.length,15); ri++) {
-      const r = rows[ri].map(v=>String(v||'').trim());
-      if(r.includes('No.') && r.includes('Part Number')) {
-        hdrIdx = ri; hdr = r; break;
-      }
+  // Column indices from header
+  const hdr = summRows[hdrRow].map(v => String(v||'').trim());
+  const colD = hdr.indexOf('Config Name');   // D = product name
+  const colE = hdr.indexOf('Qty.');          // E = quantity
+  if(colD < 0) { setSt('⚠ No se encontró "Config Name" en Summary.'); return; }
+
+  // Parse data rows after header
+  const rawItems = [];
+  for(let ri = hdrRow + 1; ri < summRows.length; ri++) {
+    const row = summRows[ri];
+    const colA = String(row[0]||'').trim();
+    const name = String(row[colD]||'').trim();
+    const qty  = toNum(row[colE >= 0 ? colE : colD + 1]);
+
+    // Skip empty rows
+    if(!name) continue;
+
+    // Skip total rows
+    if(name.includes('TOTAL PRICE')) continue;
+
+    // Skip site header rows (have a number in Col C = site identifier)
+    const colC = String(row[2]||'').trim();
+    if(colC && /^\d+$/.test(colC) && !qty) continue;
+
+    // Only take EQUIPMENT rows (isServicePart.0), skip Technical Support Service rows (isServicePart.1)
+    if(colA.includes('isServicePart.1')) continue;
+
+    // Must have qty > 0
+    if(!qty) continue;
+
+    // Try to get unit price (may be formula result or 0)
+    let unit_price = 0;
+    if(unitPriceCol >= 0) unit_price = toNum(row[unitPriceCol]);
+    // Fallback: try total price / qty
+    if(!unit_price && totalPriceCol >= 0) {
+      const tp = toNum(row[totalPriceCol]);
+      if(tp > 0 && qty > 0) unit_price = tp / qty;
     }
-    if(hdrIdx < 0) continue;
 
-    // Column indices from header
-    const colNo   = hdr.indexOf('No.');
-    const colPart = hdr.indexOf('Part Number');
-    const colModel= hdr.indexOf('Model');
-    const colDesc = hdr.indexOf('Description');
-    const colQtyH = hdr.indexOf('Qty.') >= 0 ? hdr.indexOf('Qty.') : hdr.indexOf('Qty');
+    // Clean name: remove country suffix like "(C13_Argentina)" for display
+    const cleanName = name.replace(/\(C\d+_[A-Za-z]+\)\s*$/, '').trim();
+    const displayName = cleanName.length > 65 ? cleanName.substring(0,65)+'...' : cleanName;
 
-    // Price col: from R1 markers
-    const r1 = (rows[0]||[]).map(v=>String(v||''));
-    let priceCol = -1;
-    if(fmt === 'ExcludingDiscount') {
-      priceCol = r1.findIndex(v=>v.includes('COL_UNIT_PRICE1') && !v.includes('TOTAL'));
-    } else if(fmt === 'WithDiscount') {
-      // Use list price (COL_LIST_PRICE, not COL_TOTAL_LIST_PRICE)
-      priceCol = r1.findIndex(v=>v.includes('COL_LIST_PRICE') && !v.includes('TOTAL') && !v.includes('SUM'));
-    }
-    // Fallback: col 7 (H) is usually unit price
-    if(priceCol < 0 && fmt !== 'WithoutPrice') priceCol = 7;
-
-    // Qty col: header says Qty. (col 6) but actual qty is in Site1 column (first col after price cols)
-    // Find Site1 col - it's the last meaningful column in the header
-    let siteCol = -1;
-    for(let ci=hdr.length-1; ci>=0; ci--) {
-      if(hdr[ci] && hdr[ci] !== '') { siteCol = ci; break; }
-    }
-    // If Site1 col == price col, look further
-    if(siteCol === priceCol) siteCol = -1;
-
-    console.log(`Sheet ${sn}: hdrIdx=${hdrIdx} colPart=${colPart} colModel=${colModel} priceCol=${priceCol} siteCol=${siteCol}`);
-
-    // Parse data rows
-    for(let ri=hdrIdx+1; ri<rows.length; ri++) {
-      const row = rows[ri];
-      if(!row.some(v=>v!=='')) continue;
-
-      const part  = String(row[colPart]||'').trim();
-      const model = String(row[colModel>=0?colModel:colPart+1]||'').trim();
-      const desc  = String(row[colDesc>=0?colDesc:colPart+2]||'').trim();
-
-      // Real item: part number is alphanumeric code, not a group header
-      // Real part numbers: '50086767-004', '88038XDG', '8803010671' etc.
-      // Group headers: 'WLAN AP 11be', 'Software', '1', '1.1' etc.
-      const isCode = part.length >= 6 &&
-                     /[0-9]/.test(part) &&
-                     !SKIP_PARTS.includes(part) &&
-                     !/^\d+(\.\d+)*$/.test(part); // not just "1" or "1.1"
-
-      if(!isCode) continue;
-
-      // Get qty: try siteCol first (actual site quantity), then colQtyH
-      let qty = 0;
-      if(siteCol >= 0) qty = toNum(row[siteCol]);
-      if(!qty && colQtyH >= 0) qty = toNum(row[colQtyH]);
-      // Fallback: scan for first integer > 0 in the row
-      if(!qty) {
-        for(let ci=colPart+2; ci<row.length; ci++) {
-          const n = toNum(row[ci]);
-          if(n > 0 && Number.isInteger(n)) { qty = n; break; }
-        }
-      }
-      if(!qty) continue;
-
-      // Get unit price
-      let unit_price = 0;
-      if(priceCol >= 0) unit_price = toNum(row[priceCol]);
-
-      // Use model as name if concise, else description
-      const rawName = (model && model.length < 40) ? model : (desc || model || part);
-      const name = rawName.length > 65 ? rawName.substring(0,65)+'...' : rawName;
-
-      boqItems.push({ name, part_number: part, qty: Math.round(qty), unit_price });
-    }
+    rawItems.push({ name: displayName, qty: Math.round(qty), unit_price });
   }
 
-  // Deduplicate by part number
-  const seen = new Set();
-  boqItems = boqItems.filter(b => {
-    if(seen.has(b.part_number)) return false;
-    seen.add(b.part_number); return true;
-  });
+  // Aggregate duplicates by name (same product across multiple sites → sum qty)
+  const agg = new Map();
+  for(const item of rawItems) {
+    if(agg.has(item.name)) {
+      const existing = agg.get(item.name);
+      existing.qty += item.qty;
+      // Keep highest unit price if they differ
+      if(item.unit_price > existing.unit_price) existing.unit_price = item.unit_price;
+    } else {
+      agg.set(item.name, { ...item });
+    }
+  }
+  boqItems = Array.from(agg.values());
 
   const total = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
-  console.log('BOQ items parsed:', boqItems.length, 'total:', total);
-  setSt(`BOQ (${fmt}): ${boqItems.length} items${total>0?' - Total: $'+total.toLocaleString('en-US',{minimumFractionDigits:2}):''}${boqItems.length&&!total?' - sin precios (WithoutPrice)':''}`);
+  console.log('BOQ items parsed from Summary:', boqItems.length, 'total:', total);
+  setSt(`BOQ (${fmt}): ${boqItems.length} items${total>0?' - Total: $'+total.toLocaleString('en-US',{minimumFractionDigits:2}):''}${boqItems.length&&!total?' - sin precios (formato '+fmt+')':''}`);
   renderBOQSummary();
 }
 
