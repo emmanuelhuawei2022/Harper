@@ -416,24 +416,14 @@ textarea.req::placeholder{color:var(--text3);}
               </svg>
             </div>
             <div style="flex:1;">
-              <div style="font-size:12px;color:var(--text2);font-weight:500;" id="dz-title">Arrastrá archivos o hacé click — podés subir varios a la vez</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:1px;">Requerimiento: PDF · Word (.docx) &nbsp;|&nbsp; BOQ: Excel (.xlsx) — se detectan automáticamente</div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;" id="dz-title">Arrastrá el archivo o hacé click para seleccionar</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:1px;">PDF (recomendado — incluye imágenes de BOQ) · Word (.docx) solo texto</div>
             </div>
           </div>
-          <input type="file" id="fi" accept=".pdf,.docx,.xlsx,.xls" multiple style="display:none;" onchange="handleAllFiles(this.files)">
+          <input type="file" id="fi" accept=".pdf,.docx" multiple style="display:none;" onchange="handleAllFiles(this.files)">
 
           <!-- FILE PILLS -->
           <div id="file-pills" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
-
-          <!-- BOQ INLINE SUMMARY -->
-          <div id="boq-inline" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-top:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#4ade80;">📊 BOQ cargada</span>
-              <span style="font-size:12px;font-weight:700;color:var(--text);" id="boq-inline-total">—</span>
-            </div>
-            <div id="boq-inline-list" style="display:flex;flex-direction:column;gap:3px;max-height:140px;overflow-y:auto;"></div>
-            <div id="boq-inline-more" style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center;display:none;"></div>
-          </div>
 
           <div class="sep"><div class="sep-line"></div><span class="sep-txt">o pegá el texto del requerimiento</span><div class="sep-line"></div></div>
 
@@ -640,31 +630,27 @@ async function handleAllFiles(files) {
   const pills = document.getElementById('file-pills');
 
   for(const file of Array.from(files)) {
-    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     const isPdf = /\.pdf$/i.test(file.name) || file.type==='application/pdf';
     const isDocx = /\.docx$/i.test(file.name) || file.type.includes('wordprocessingml');
 
-    // Add pill — don't clear existing ones
+    if(!isPdf && !isDocx) { setSt('⚠ Solo se aceptan PDF o Word (.docx)'); continue; }
+
+    // Add pill
     if(pills) {
       const pill = document.createElement('span');
-      pill.className = 'badge ' + (isExcel ? 'badge-amber' : 'badge-blue');
+      pill.className = 'badge badge-blue';
       pill.style.cssText = 'font-size:11px;padding:3px 8px;margin:1px;cursor:default;';
-      pill.title = isExcel ? 'BOQ' : 'Requerimiento';
-      pill.textContent = (isExcel ? '📊 ' : '📄 ') + file.name;
+      pill.textContent = '📄 ' + file.name;
       pills.appendChild(pill);
     }
 
-    if(isExcel) {
-      await loadBOQ(file);
-    } else if(isPdf || isDocx) {
-      await onFile(file);
-    }
+    await onFile(file);
   }
 
-  // Update dz title to show count of all loaded files
+  // Update dz title
   const allPills = pills ? pills.querySelectorAll('span').length : 0;
   document.getElementById('dz-title').textContent = allPills === 1
-    ? Array.from(pills.querySelectorAll('span'))[0]?.textContent?.replace('📄 ','').replace('📊 ','') || 'Archivo cargado'
+    ? Array.from(pills.querySelectorAll('span'))[0]?.textContent?.replace('📄 ','') || 'Archivo cargado'
     : `${allPills} archivos cargados — hacé click para agregar más`;
 
   // Reset file input so new files can be added without clearing existing pills
@@ -715,10 +701,9 @@ function clearAll(){
   document.getElementById('req').value='';
   clearFile();
   setSt('');
-  boqItems=[];
   const pills=document.getElementById('file-pills');
   if(pills) pills.innerHTML='';
-  document.getElementById('dz-title').textContent='Arrastrá archivos o hacé click — podés subir varios a la vez';
+  document.getElementById('dz-title').textContent='Arrastrá el archivo o hacé click para seleccionar';
   document.getElementById('fi').value='';
 }
 
@@ -807,10 +792,7 @@ async function runAnalysis() {
   setSt(hasPdf?`Enviando PDF a la IA (${loadedFile.name})...`:'Procesando con IA...',true);
 
   const scList=SC.map(s=>`${s.id}: ${s.name} (${s.cat}) — ${s.dmin}–${s.dmax} días`).join('\n');
-  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
   const psPct = parseFloat(document.getElementById('s-ps-pct').value)||0.15;
-  const psFloor = boqTotal > 0 ? boqTotal * psPct : 0;
-  const boqSummary = boqItems.length ? `BOQ cargada: ${boqItems.length} items, total equipos: $${boqTotal.toLocaleString('en-US',{minimumFractionDigits:2})}. PS floor (${Math.round(psPct*100)}%): $${psFloor.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'No hay BOQ cargada.';
 
   const ctx=[
     document.getElementById('s-partner').value&&`Partner (quien hace el pedido): ${document.getElementById('s-partner').value}`,
@@ -818,7 +800,7 @@ async function runAnalysis() {
     document.getElementById('s-biztype').value&&`Tipo de negocio: ${document.getElementById('s-biztype').value}`,
     document.getElementById('s-sites').value&&`Sitios: ${document.getElementById('s-sites').value}`,
     [...chips].length&&`Tecnologías pre-marcadas: ${[...chips].join(', ')}`,
-    boqSummary,
+    `Porcentaje PS sobre BOQ seleccionado: ${Math.round(psPct*100)}%`,
   ].filter(Boolean).join('\n');
 
   const sys=`Sos un experto en Professional Services de Huawei EBG Argentina. Analizás requerimientos técnicos y los convertís en análisis estructurados con clasificación de escenarios PS.
@@ -837,20 +819,24 @@ FASES DEL PROYECTO:
 - M-1: Design, Documentation, Solution and Technical management
 - M1: Commissioning and integration
 
-REGLAS PARA PROPONER RECURSOS:
-1. Para proyectos SIMPLES (1 escenario, pocos equipos, 1 sitio): 3 recursos (TL + PM + TD), total 0.3–0.8 meses
-2. Para proyectos MEDIANOS (2-3 escenarios, multi-sitio): 3-4 recursos, total 0.5–1.5 meses
-3. Para proyectos COMPLEJOS (3+ escenarios, muchos sitios, migración): 4-5 recursos, total 1.0–3.0 meses
-4. TL siempre tiene menos meses que TD (el TL supervisa, no ejecuta todo)
-5. PM tiene meses similares o menores al TL
-6. TD y TE tienen los meses más altos (son quienes ejecutan)
-7. Distribuí los meses entre M-1 (diseño) y M1 (comisionamiento). Típicamente M-1 ≤ 30% del total del recurso.
-8. El labor cost total debe ser RAZONABLE respecto al costo de equipos (referencia: 10-25% del BOQ).
-${psFloor > 0 ? `9. El PS floor de referencia es $${psFloor.toLocaleString('en-US',{minimumFractionDigits:2})} (${Math.round(psPct*100)}% de BOQ). El labor cost total debería estar cerca de este valor, ni muy por debajo ni muy por encima.` : ''}
+REGLAS ESTRICTAS PARA PROPONER RECURSOS:
+1. Para proyectos SIMPLES (1 escenario, pocos equipos, 1 sitio): MÁXIMO 3 recursos (TL + PM + TD), total entre 0.10 y 0.60 meses. Ejemplo: 1 NCE-Campus = TL 0.05+0.05, PM 0.05+0.05, TD 0.05+0.15 = 0.40 meses total.
+2. Para proyectos MEDIANOS (2-3 escenarios, <10 sitios): 3 recursos, total entre 0.30 y 1.00 meses.
+3. Para proyectos GRANDES (3+ escenarios, 10+ sitios, multi-tecnología): 3-4 recursos, total entre 0.50 y 2.00 meses.
+4. NUNCA superes 3.00 meses totales. Si llegás a ese punto, el proyecto se divide en fases.
+5. TL: SIEMPRE el recurso con MENOS meses (supervisa, no ejecuta). Máximo 30% del total de meses.
+6. PM: similar o menor al TL. Máximo 25% del total de meses.
+7. TD: el recurso con MÁS meses (ejecuta la configuración). Entre 35-50% del total.
+8. TE: SOLO para proyectos con 3+ escenarios diferentes o multi-sitio complejo.
+9. M-1 (diseño) = máximo 30% de los meses de cada recurso. M1 (comisionamiento) = 70% restante.
+10. El labor cost NUNCA debe superar el 25% del valor estimado de los equipos. Si no tenés precios, estimá por la complejidad del equipamiento.
+11. REFERENCIA: Un proyecto típico de 10 switches + 200 APs + 2 firewalls = ~0.57 meses totales, ~$4.300 USD de labor.
+
+EXTRACCIÓN DE BOQ:
+Si el documento contiene información de BOQ (tablas de equipos, capturas del Summary, listas de productos con cantidades y/o precios), extraé esos items en el campo "boq_items". Buscá: Config Name, Qty, Unit Price, Total Price. Si hay imágenes de tablas de BOQ, leé los datos de las imágenes.
 
 Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
-{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":"","resources":[{"role":"TL","type":"Local","level":"L3","months_m1":0,"months_m2":0,"rationale":""},{"role":"PM","type":"Out","level":"L2","months_m1":0,"months_m2":0,"rationale":""},{"role":"TD","type":"Out","level":"L1","months_m1":0,"months_m2":0,"rationale":""}],"staffing_rationale":""}`;
-
+{"partner":"","client_final":"","project":"","biz_type":"Canal (Partner → Cliente Final) | Directo (Huawei → Cliente Final) | Licitación Pública | B2B Corporativo | B2B Carrier/Telco | ''","sites":null,"aps":null,"switches":null,"routers":null,"firewalls":null,"cloudengine":null,"bbus":null,"rrus":null,"mw_links":null,"links_450":null,"nce_campus":null,"nce_ip":null,"nce_t":null,"nce_fan":null,"campusinsight":null,"mae_e":null,"cloudcampus_lic":null,"spc_nodes":null,"fusioncompute":null,"fusionsphere_vms":null,"storage_arrays":null,"oceanprotect":null,"cameras":null,"nvrs":null,"cpes":null,"ep821":null,"rectifiers":null,"offgrid_sites":null,"technologies":[],"scenarios":[],"is_new":false,"new_scenario_name":"","what_and_why":"","as_is":"","to_be":"","gaps":[],"assumptions":[],"sow_scope":[{"title":"","desc":""}],"sow_oos":[],"days_min":0,"days_max":0,"days_note":"","scenario_rationale":"","boq_items":[{"name":"","qty":0,"unit_price":0}],"boq_total":0,"resources":[{"role":"TL","type":"Local","level":"L3","months_m1":0,"months_m2":0,"rationale":""},{"role":"PM","type":"Out","level":"L2","months_m1":0,"months_m2":0,"rationale":""},{"role":"TD","type":"Out","level":"L1","months_m1":0,"months_m2":0,"rationale":""}],"staffing_rationale":""}`;
   let userContent;
   if(hasPdf) {
     userContent=[
@@ -912,7 +898,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     if(progTimer) clearInterval(progTimer);
     setProgress(100,5);
     setTimeout(hideProgress, 1500);
-    renderBOQSummary();
+    renderBOQFromAI(r);
   } catch(e) {
     hideProgress();
     setSt('Error: '+e.message);
@@ -1046,7 +1032,8 @@ function renderHRCost(r) {
   document.getElementById('hr-total-val').style.color = '#fbbf24';
 
   // Floor validation
-  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0), 0);
+  const boqAiItems = r.boq_items || [];
+  const boqTotal = r.boq_total || boqAiItems.reduce((s,b)=>s+b.qty*(b.unit_price||0), 0);
   const psPct = parseFloat(document.getElementById('s-ps-pct').value)||0.15;
   const psFloor = boqTotal > 0 ? boqTotal * psPct : 0;
   const warnEl = document.getElementById('hr-floor-warn');
@@ -1097,202 +1084,34 @@ function renderHRCost(r) {
   }
 }
 
-function renderBOQSummary() {
+// ── BOQ FROM AI ──
+function renderBOQFromAI(r) {
   const panel = document.getElementById('boq-panel');
-  const inline = document.getElementById('boq-inline');
-  console.log('renderBOQSummary called, items:', boqItems.length, 'inline:', !!inline, 'panel:', !!panel);
-  if(!boqItems.length) {
-    if(panel) panel.style.display='none';
-    if(inline) inline.style.display='none';
-    return;
-  }
-  const total = boqItems.reduce((s,b)=>s+b.qty*b.unit_price, 0);
+  const items = r.boq_items || [];
+  const boqTotal = r.boq_total || items.reduce((s,b)=>s+b.qty*(b.unit_price||0), 0);
+
+  if(!items.length) { if(panel) panel.style.display='none'; return; }
+
+  panel.style.display = 'block';
   const fmt = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  // Step 1 inline
-  if(inline) {
-    inline.style.display = 'block';
-    // Update header with count
-    const hdr = inline.querySelector('span:first-child');
-    if(hdr) hdr.textContent = `📊 BOQ cargada — ${boqItems.length} ítems`;
-    document.getElementById('boq-inline-total').textContent = total > 0 ? fmt(total) : '⚠ Sin precios';
-    const list = document.getElementById('boq-inline-list');
-    list.innerHTML = boqItems.slice(0,8).map((item,i) =>
-      `<div style="display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);">` +
-      `<span style="font-size:10px;color:var(--text3);min-width:18px;text-align:right;">${i+1}</span>` +
-      `<span style="font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name}</span>` +
-      `<span style="font-size:10px;color:var(--text3);min-width:28px;text-align:center;">x${item.qty}</span>` +
-      `<span style="font-size:11px;color:var(--text);min-width:72px;text-align:right;">${item.unit_price>0?fmt(item.qty*item.unit_price):'—'}</span>` +
-      `</div>`).join('');
-    const more = document.getElementById('boq-inline-more');
-    if(boqItems.length > 8) {
-      more.style.display='block';
-      more.textContent = '... y ' + (boqItems.length - 8) + ' items mas';
-    } else { more.style.display='none'; }
+  document.getElementById('boq-total-val').textContent = boqTotal > 0 ? fmt(boqTotal) : '⚠ Sin precios';
+  document.getElementById('boq-summary-table').innerHTML = items.slice(0,20).map((item,i) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">` +
+    `<span style="font-size:10px;color:var(--text3);min-width:20px;text-align:right;">${i+1}</span>` +
+    `<span style="font-size:11px;color:var(--text);flex:1;line-height:1.4;">${item.name}</span>` +
+    `<span style="font-size:11px;color:var(--text2);min-width:30px;text-align:center;">x${item.qty}</span>` +
+    `<span style="font-size:11px;color:var(--text);min-width:80px;text-align:right;">${item.unit_price>0?fmt(item.qty*item.unit_price):'—'}</span>` +
+    `</div>`).join('') +
+    (items.length > 20 ? `<div style="font-size:11px;color:var(--text3);padding:6px 0;text-align:center;">... y ${items.length-20} items más</div>` : '');
+
+  // Update PS floor info
+  const psPct = parseFloat(document.getElementById('s-ps-pct').value)||0.15;
+  const psFloor = boqTotal > 0 ? boqTotal * psPct : 0;
+  const floorInfo = document.getElementById('ps-floor-info');
+  if(boqTotal > 0) {
+    floorInfo.innerHTML = `BOQ: ${fmt(boqTotal)} → Piso ${Math.round(psPct*100)}%: <strong style="color:var(--text);">${fmt(psFloor)}</strong>`;
   }
-
-  // Step 2 panel
-  if(panel) {
-    panel.style.display='block';
-    document.getElementById('boq-total-val').textContent = total > 0 ? fmt(total) : '⚠ Precios pendientes de cotización';
-    document.getElementById('boq-summary-table').innerHTML = boqItems.slice(0,15).map((item,i) =>
-      `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">` +
-      `<span style="font-size:10px;color:var(--text3);min-width:20px;text-align:right;">${i+1}</span>` +
-      `<span style="font-size:11px;color:var(--text);flex:1;line-height:1.4;">${item.name}</span>` +
-      `<span style="font-size:11px;color:var(--text2);min-width:30px;text-align:center;">x${item.qty}</span>` +
-      `<span style="font-size:11px;color:var(--text);min-width:80px;text-align:right;">${item.unit_price>0?fmt(item.qty*item.unit_price):'—'}</span>` +
-      `</div>`).join('') +
-      (boqItems.length > 15 ? `<div style="font-size:11px;color:var(--text3);padding:6px 0;text-align:center;">... y ${boqItems.length-15} items mas</div>` : '');
-  }
-}
-
-// ── BOQ LOADER ──
-let boqItems = [];
-
-async function loadBOQ(file) {
-  if(!file) return;
-  setSt('Procesando BOQ: ' + file.name + '...', true);
-  if(!window.XLSX) { setSt('Libreria Excel cargando, espera un segundo.'); return; }
-
-  const ab = await file.arrayBuffer();
-  const wb = XLSX.read(ab, {type:'array'});
-  boqItems = [];
-
-  const toNum = v => { const n = parseFloat(String(v||'').replace(/,/g,'.')); return isNaN(n)?0:Math.abs(n); };
-
-  // ── DETECT FORMAT from Summary R1 ──
-  const wsSumm = wb.Sheets['Summary'];
-  if(!wsSumm) { setSt('⚠ No se encontró la hoja Summary en el archivo.'); return; }
-
-  const summRows = XLSX.utils.sheet_to_json(wsSumm, {header:1, defval:''});
-  const r1 = summRows[0] || [];
-  const hasUnitPrice = r1.some(v => String(v).includes('COL_UNIT_PRICE'));
-  const hasListPrice = r1.some(v => String(v).includes('COL_LIST_PRICE'));
-  const hasDiscount = wb.SheetNames.includes('Discount');
-
-  let fmt = 'WithoutPrice';
-  if(hasListPrice && hasDiscount) fmt = 'WithDiscount';
-  else if(hasUnitPrice) fmt = 'ExcludingDiscount';
-  console.log('BOQ format detected:', fmt);
-
-  // ── DETECT PRICE COLUMNS from R1 markers ──
-  // Unit price col: COL_UNIT_PRICE1 (not TOTAL)
-  // For WithDiscount: also has COL_LIST_PRICE
-  let unitPriceCol = -1;
-  let totalPriceCol = -1;
-  for(let ci=0; ci<r1.length; ci++) {
-    const v = String(r1[ci]);
-    if(fmt === 'ExcludingDiscount') {
-      if(v.includes('COL_UNIT_PRICE1') && !v.includes('TOTAL')) unitPriceCol = ci;
-      if(v.includes('COL_TOTAL_PRICE1')) totalPriceCol = ci;
-    } else if(fmt === 'WithDiscount') {
-      // Use discounted price (COL_UNIT_PRICE1), not list price
-      if(v.includes('COL_UNIT_PRICE1') && !v.includes('TOTAL')) unitPriceCol = ci;
-      if(v.includes('COL_TOTAL_PRICE1')) totalPriceCol = ci;
-    }
-  }
-  console.log('Price cols - unit:', unitPriceCol, 'total:', totalPriceCol);
-
-  // ── EXTRACT METADATA from Basic Information ──
-  const wsMeta = wb.Sheets['Basic Information'];
-  if(wsMeta) {
-    const metaRows = XLSX.utils.sheet_to_json(wsMeta, {header:1, defval:''});
-    for(const row of metaRows) {
-      const key = String(row[2]||'').trim();
-      const val = String(row[3]||'').trim();
-      if(val) {
-        if(key==='Customer Name' && !document.getElementById('s-client').value)
-          document.getElementById('s-client').value = val;
-        if(key==='Partner Name' && !document.getElementById('s-partner').value)
-          document.getElementById('s-partner').value = val;
-        if(key==='Quotation Name' && !document.getElementById('s-project').value)
-          document.getElementById('s-project').value = val;
-      }
-    }
-  }
-
-  // ── PARSE SUMMARY SHEET ONLY ──
-  // Structure:
-  //   Row 1: R1 markers (COL_SORTNO, COL_DESCRIPTION, COL_ADD, etc.)
-  //   Row 9: Header (No., Config Name, Qty., Service Date, [price headers])
-  //   Row 10+: Data
-  //   Col A: metadata string with flags (isServicePart.0 = equipment, isServicePart.1 = service)
-  //   Col C: Site number (when present = site header row, skip)
-  //   Col D: Config Name (product name)
-  //   Col E: Qty
-  //   Price cols: formulas (may or may not resolve in SheetJS)
-
-  // Find header row (has "Config Name")
-  let hdrRow = -1;
-  for(let ri=0; ri<Math.min(summRows.length, 15); ri++) {
-    if(summRows[ri].some(v => String(v).trim() === 'Config Name')) { hdrRow = ri; break; }
-  }
-  if(hdrRow < 0) { setSt('⚠ No se encontró el header en Summary.'); return; }
-
-  // Column indices from header
-  const hdr = summRows[hdrRow].map(v => String(v||'').trim());
-  const colD = hdr.indexOf('Config Name');   // D = product name
-  const colE = hdr.indexOf('Qty.');          // E = quantity
-  if(colD < 0) { setSt('⚠ No se encontró "Config Name" en Summary.'); return; }
-
-  // Parse data rows after header
-  const rawItems = [];
-  for(let ri = hdrRow + 1; ri < summRows.length; ri++) {
-    const row = summRows[ri];
-    const colA = String(row[0]||'').trim();
-    const name = String(row[colD]||'').trim();
-    const qty  = toNum(row[colE >= 0 ? colE : colD + 1]);
-
-    // Skip empty rows
-    if(!name) continue;
-
-    // Skip total rows
-    if(name.includes('TOTAL PRICE')) continue;
-
-    // Skip site header rows (have a number in Col C = site identifier)
-    const colC = String(row[2]||'').trim();
-    if(colC && /^\d+$/.test(colC) && !qty) continue;
-
-    // Only take EQUIPMENT rows (isServicePart.0), skip Technical Support Service rows (isServicePart.1)
-    if(colA.includes('isServicePart.1')) continue;
-
-    // Must have qty > 0
-    if(!qty) continue;
-
-    // Try to get unit price (may be formula result or 0)
-    let unit_price = 0;
-    if(unitPriceCol >= 0) unit_price = toNum(row[unitPriceCol]);
-    // Fallback: try total price / qty
-    if(!unit_price && totalPriceCol >= 0) {
-      const tp = toNum(row[totalPriceCol]);
-      if(tp > 0 && qty > 0) unit_price = tp / qty;
-    }
-
-    // Clean name: remove country suffix like "(C13_Argentina)" for display
-    const cleanName = name.replace(/\(C\d+_[A-Za-z]+\)\s*$/, '').trim();
-    const displayName = cleanName.length > 65 ? cleanName.substring(0,65)+'...' : cleanName;
-
-    rawItems.push({ name: displayName, qty: Math.round(qty), unit_price });
-  }
-
-  // Aggregate duplicates by name (same product across multiple sites → sum qty)
-  const agg = new Map();
-  for(const item of rawItems) {
-    if(agg.has(item.name)) {
-      const existing = agg.get(item.name);
-      existing.qty += item.qty;
-      // Keep highest unit price if they differ
-      if(item.unit_price > existing.unit_price) existing.unit_price = item.unit_price;
-    } else {
-      agg.set(item.name, { ...item });
-    }
-  }
-  boqItems = Array.from(agg.values());
-
-  const total = boqItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
-  console.log('BOQ items parsed from Summary:', boqItems.length, 'total:', total);
-  setSt(`BOQ (${fmt}): ${boqItems.length} items${total>0?' - Total: $'+total.toLocaleString('en-US',{minimumFractionDigits:2}):''}${boqItems.length&&!total?' - sin precios (formato '+fmt+')':''}`);
-  renderBOQSummary();
 }
 
 
@@ -1300,7 +1119,7 @@ async function loadBOQ(file) {
 const TEMPLATE_B64 = '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';
 
 
-function fillTemplate(wb, r, boqItems) {
+function fillTemplate(wb, r) {
   const partner   = r.partner||'';
   const client    = r.client_final||'';
   const project   = r.project||'';
@@ -1328,7 +1147,8 @@ function fillTemplate(wb, r, boqItems) {
     return { ...res, ri, m1, m2, totalM, days_m1, days_m2, subtotal: totalM * ri.rate };
   });
   const totalLabor = resources.reduce((s,res)=>s+res.subtotal, 0);
-  const boqTotal = (boqItems||[]).reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
+  const boqAiItems = r.boq_items || [];
+  const boqTotal = r.boq_total || boqAiItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
 
   function sc(ws, addr, value) {
     if(!ws) return;
@@ -1344,7 +1164,7 @@ function fillTemplate(wb, r, boqItems) {
     [client?'GO':'REVIEW',''],
     [gaps.length?'REVIEW':'GO', gaps.length?gaps.length+' gaps pendientes':''],
     [assumptions.length?'GO':'REVIEW',''],
-    [(boqItems&&boqItems.length)?'GO':'REVIEW',(boqItems&&boqItems.length)?boqItems.length+' items':'Pendiente de BOQ'],
+    [boqAiItems.length?'GO':'REVIEW', boqAiItems.length?boqAiItems.length+' items':'Pendiente de BOQ'],
   ];
 
   // SUMMARY
@@ -1429,9 +1249,9 @@ function fillTemplate(wb, r, boqItems) {
   const ws7 = wb.Sheets['HW-License BOQ'];
   if(ws7) {
     sc(ws7,'B2',`HW & LICENSE BOQ - ${client} \u00b7 ${project}`);
-    if(boqItems&&boqItems.length) {
+    if(boqAiItems.length) {
       if(ws7['B6']) ws7['B6'].v='';
-      boqItems.slice(0,50).forEach((item,i)=>{
+      boqAiItems.slice(0,50).forEach((item,i)=>{
         const row=6+i;
         sc(ws7,`B${row}`,i+1);
         sc(ws7,`C${row}`,item.name||'');
@@ -1439,9 +1259,9 @@ function fillTemplate(wb, r, boqItems) {
         sc(ws7,`E${row}`,item.unit_price||0);
         sc(ws7,`F${row}`,(item.qty||0)*(item.unit_price||0));
       });
-      ws7['!ref'] = `A1:G${5+boqItems.length+1}`;
+      ws7['!ref'] = `A1:G${5+boqAiItems.length+1}`;
     } else {
-      sc(ws7,'C6','Subi la BOQ para completar esta seccion');
+      sc(ws7,'C6','BOQ no disponible en el documento');
     }
   }
 }
@@ -1460,7 +1280,7 @@ function exportExcel() {
     for(let i=0;i<templateBin.length;i++) templateArr[i]=templateBin.charCodeAt(i);
     const wb = XLSX.read(templateArr, {type:'array', cellStyles:true});
     console.log('Template sheets:', wb.SheetNames);
-    fillTemplate(wb, r, boqItems);
+    fillTemplate(wb, r);
     const filename = 'EBG_PS_' + (r.client_final||'Cliente').replace(/[^a-zA-Z0-9]/g,'_') + '_' + (r.scenarios||'ESC') + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
     XLSX.writeFile(wb, filename);
     return;
@@ -1527,7 +1347,8 @@ function exportExcel() {
   });
 
   let totalLabor = aiResources.reduce((s,res)=>s+res.subtotal, 0);
-  const boqTotal = boqItems.reduce((s,b)=>s+b.qty*b.unit_price,0);
+  const boqFbItems = r.boq_items || [];
+  const boqTotal = r.boq_total || boqFbItems.reduce((s,b)=>s+b.qty*(b.unit_price||0),0);
 
   // ── 1. SUMMARY ──
   const gng = [
@@ -1536,7 +1357,7 @@ function exportExcel() {
     ['Cliente / Partner identificado', cli&&cli!=='Cliente'?'GO':'REVIEW', ''],
     ['Gaps críticos resueltos', gaps.length===0?'GO':'REVIEW', gaps.length?`${gaps.length} gaps pendientes`:''],
     ['Assumptions documentadas', assumptions.length>0?'GO':'REVIEW', ''],
-    ['BOQ disponible', boqItems.length>0?'GO':'REVIEW', boqItems.length?`${boqItems.length} ítems`:'Pendiente de BOQ'],
+    ['BOQ disponible', boqFbItems.length>0?'GO':'REVIEW', boqFbItems.length?`${boqFbItems.length} ítems`:'Pendiente de BOQ'],
   ];
 
   const summAoa = [
@@ -1715,8 +1536,8 @@ function exportExcel() {
     [null],
     [hdr('BILL OF QUANTITIES — Hardware & Software Licenses',C.DARK_BLU,C.WHITE,10)],
     ['#','Product / Config Name','Qty','Unit Price (USD)','Total (USD)'].map(h=>cell(h,true,C.DARK,C.GRAY,'center')),
-    ...(boqItems.length ? [
-      ...boqItems.map((item,i)=>[
+    ...(boqFbItems.length ? [
+      ...boqFbItems.map((item,i)=>[
         cell(i+1,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
         cell(item.name,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE),
         cell(item.qty,false,C.DARK,i%2===0?C.GRAY_LT:C.WHITE,'center'),
@@ -1726,7 +1547,7 @@ function exportExcel() {
       [cell('TOTAL BOQ',true,C.WHITE,C.DARK_BLU,'right'),null,null,null,
        cell(boqTotal,true,C.WHITE,C.DARK_BLU,'right','$#,##0.00',11)],
     ] : [
-      [cell('BOQ no cargada — usá el botón "Subir BOQ" para completar esta sección',false,C.AMBER,C.AMBER_LT,'center',null,10,true)]
+      [cell('BOQ no disponible en el documento analizado',false,C.AMBER,C.AMBER_LT,'center',null,10,true)]
     ]),
   ];
   addSheet('HW-License BOQ', boqAoa, [2,8,56,12,18,18,2]);
