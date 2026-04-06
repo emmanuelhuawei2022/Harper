@@ -243,7 +243,7 @@ textarea.req::placeholder{color:var(--text3);}
     <button class="nav-tab" onclick="switchTab('scenarios')">Escenarios</button>
   </div>
   <div style="display:flex;gap:6px;align-items:center;">
-    <span class="badge badge-red">EBG v4.0 · Opus</span>
+    <span class="badge badge-red">EBG v4.0 · Sonnet</span>
     <span class="badge badge-blue" id="hbadge">0 análisis</span>
     <span id="key-indicator" onclick="resetKey()" title="Cambiar API key">● key activa</span>
   </div>
@@ -860,7 +860,7 @@ Respondé ÚNICAMENTE con JSON válido sin texto adicional ni markdown:
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":getKey(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-opus-4-20250514",max_tokens:2500,system:sys,messages:[{role:"user",content:userContent}]})
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,system:sys,messages:[{role:"user",content:userContent}]})
     });
     const data=await res.json();
     if(data.error) throw new Error(data.error.message);
